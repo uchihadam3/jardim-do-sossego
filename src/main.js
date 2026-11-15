@@ -7,7 +7,8 @@ import { createFx } from './fx.js';
 import { createAudio } from './audio.js';
 import { createNav } from './nav.js';
 import { createUI } from './ui.js';
-import { createGame, loadState } from './game.js';
+import { createGame, normalize } from './game.js';
+import { createStore } from './save.js';
 import { SPECIES_LIST, buildPlantGeometry, plantMaterialFor } from './species.js';
 import { windU } from './plantmat.js';
 import { clamp, lerp, smooth } from './util.js';
@@ -73,7 +74,8 @@ if (window.__WEB && 'serviceWorker' in navigator) {
 }
 
 async function boot() {
-  const state = loadState();
+  const store = createStore();
+  const state = normalize((await store.load()) || window.__SAVE);
   const demo = params.get('demo'); // preview a grown garden without touching the save
   if (demo) { state.zones = [0, 1, 2, 3, 4, 5, 6, 7, 8]; state.decor = ['lanternas', 'banco', 'bebedouro', 'casinha', 'carrinho', 'anao']; state.coins = 999; state.xp = 3000; state.settings.time = 'fixo'; state.hour = +(params.get('h') || 16.8); }
   const mobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && Math.min(screen.width, screen.height) < 820);
@@ -104,11 +106,12 @@ async function boot() {
   R.render(scene, camera);
   const thumbs = await makeThumbs(R.renderer, (f) => { bar.style.width = Math.round(f * 100) + '%'; });
   const ui = createUI({ project, thumbs, audio });
-  const game = createGame({ scene, world, fx, audio, gardener, nav, env, ui, state });
+  const game = createGame({ scene, world, fx, audio, gardener, nav, env, ui, state, store });
   if (demo) { game.save = () => {}; world.spots.forEach((s, i) => { if (demo === '2' && i % 3 === 0) return; const list = SPECIES_LIST.filter((d) => d.spots.includes(s.type)); const d = list[(i * 7 + 3) % list.length]; state.plants[s.id] = { sp: d.id, seed: i + 5, grown: demo === '2' && i % 4 === 1 ? d.grow * 0.6 : d.grow, wet: i % 9 === 4 ? 0 : 300, giftT: i % 6 === 2 ? 80 : 0, ready: false }; }); }
   ui.game = game; ui.initTags(ZONES);
   ui.onQuality = (q) => setQ(q === 'auto' ? (mobile ? 'media' : 'alta') : q);
-  ui.onReset = () => { game.save = () => {}; location.reload(); };
+  ui.onReset = async () => { await game.reset(); location.reload(); };
+  ui.store = store;
   ui.focus = (x, z) => { cam.focus.set(x, 0.8, z); cam.focusT = 3.2; };
   const critters = createCritters(scene, world, { S: state, G: game, env, fx, ui, audio });
   game.init();
@@ -174,8 +177,8 @@ async function boot() {
   canvas.addEventListener('pointerup', up); canvas.addEventListener('pointercancel', (e) => ptrs.delete(e.pointerId));
   canvas.addEventListener('wheel', (e) => { e.preventDefault(); cam.dist = clamp(cam.dist * Math.exp(e.deltaY * 0.0011), 3.5, 34); }, { passive: false });
   addEventListener('keydown', (e) => { if (e.key === 'Escape' && game.placing) { game.deco.cancel(); return; } if (e.key === 'Escape') { ui.closeCards(); ui.closeModal(); document.body.classList.remove('photo'); } });
-  document.addEventListener('visibilitychange', () => { if (document.hidden) { game.save(); audio.pause(true); } else audio.pause(false); });
-  addEventListener('pagehide', () => game.save());
+  document.addEventListener('visibilitychange', () => { if (document.hidden) { game.save(true); audio.pause(true); } else audio.pause(false); });
+  addEventListener('pagehide', () => game.save(true)); addEventListener('beforeunload', () => game.save(true));
 
   // ---------- loop ----------
   let last = performance.now(), time = 0, focusY = 0.5, ready = 0;

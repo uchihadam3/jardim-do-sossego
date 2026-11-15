@@ -73,14 +73,18 @@ const QUESTS = [
 const fresh = () => ({ v: 1, coins: 45, xp: 0, zones: [0], decor: [], upg: [], plants: {}, quest: 0, album: [], stats: { planted: 0, watered: 0, collected: 0, blooms: 0, orders: 0, weeds: 0, prunes: 0, fert: 0 }, hour: 8.6, last: Date.now(), t0: Date.now(), tips: {},
   style: { own: [] }, items: [], stored: {}, basket: {}, orders: [], orderT: 0, adubo: 0, daily: { last: '', streak: 0, best: 0 }, weeds: {}, wilt: {}, ach: {}, log: [], hybrids: [], seen: [], seasonsSeen: [], rare: {}, paint: {}, outfit: {}, settings: { music: 0.6, sfx: 0.8, quality: 'auto', time: 'auto' } });
 
-export function loadState() {
-  const merge = (s) => Object.assign(fresh(), s, { settings: Object.assign(fresh().settings, s.settings), stats: Object.assign(fresh().stats, s.stats), daily: Object.assign(fresh().daily, s.daily) });
-  try { const raw = localStorage.getItem(SAVE_KEY); if (raw) { const s = JSON.parse(raw); if (s && s.v === 1) return merge(s); } } catch (e) {}
-  try { const s = window.__SAVE; if (s && s.v === 1) return merge(JSON.parse(JSON.stringify(s))); } catch (e) {} // garden carried over by the downloaded copy
-  return fresh();
+// Turns whatever was stored (possibly by an older version of the game) into a complete, current state.
+export function normalize(raw) {
+  const f = fresh(); if (!raw || raw.v !== 1) return f;
+  const s = Object.assign(f, raw, { settings: Object.assign(fresh().settings, raw.settings), stats: Object.assign(fresh().stats, raw.stats), daily: Object.assign(fresh().daily, raw.daily) });
+  for (const k of ['zones', 'decor', 'upg', 'album', 'orders', 'log', 'hybrids', 'seen', 'seasonsSeen', 'items']) if (!Array.isArray(s[k])) s[k] = fresh()[k];
+  for (const k of ['plants', 'tips', 'basket', 'weeds', 'wilt', 'ach', 'rare', 'stored']) if (!s[k] || typeof s[k] !== 'object') s[k] = {};
+  if (!s.style || !Array.isArray(s.style.own)) s.style = { own: [] }; if (!s.zones.includes(0)) s.zones.unshift(0); if (!s.t0) s.t0 = Date.now();
+  return s;
 }
+export function loadState() { let raw = null; try { raw = JSON.parse(localStorage.getItem(SAVE_KEY)); } catch (e) {} return normalize(raw || window.__SAVE); }
 
-export function createGame({ scene, world, fx, audio, gardener, nav, env, ui, state }) {
+export function createGame({ scene, world, fx, audio, gardener, nav, env, ui, state, store }) {
   const G = { state, tasks: [], cur: null, time: 0, rainT: 240 + Math.random() * 200, raining: 0 };
   const S = state, V = {}; // V: visuals per spot
   const tex = bubbleTextures();
@@ -89,9 +93,10 @@ export function createGame({ scene, world, fx, audio, gardener, nav, env, ui, st
     order: new THREE.SpriteMaterial({ map: tex.order, depthTest: false, transparent: true }), daily: new THREE.SpriteMaterial({ map: tex.daily, depthTest: false, transparent: true }), plus: new THREE.SpriteMaterial({ map: tex.plus, transparent: true, opacity: 0.85, depthWrite: false }) };
   const dry = new THREE.Color(0x6b4e3a), wetC = new THREE.Color(0x3a281e);
 
-  G.save = () => { S.last = Date.now(); try { localStorage.setItem(SAVE_KEY, JSON.stringify(S)); } catch (e) {} };
+  G.save = (force) => { if (store) store.save(S, force); else { S.last = Date.now(); try { localStorage.setItem(SAVE_KEY, JSON.stringify(S)); } catch (e) {} } };
+  G.store = store;
   const save = () => G.save();
-  G.reset = () => { try { localStorage.removeItem(SAVE_KEY); } catch (e) {} };
+  G.reset = async () => { G.save = () => {}; if (store) await store.wipe(); else { try { localStorage.removeItem(SAVE_KEY); } catch (e) {} } };
   const level = () => { let l = 1; while (l < LV.length && S.xp >= LV[l]) l++; return l; };
   G.level = level;
   const has = (u) => S.upg.includes(u);
@@ -389,7 +394,7 @@ export function createGame({ scene, world, fx, audio, gardener, nav, env, ui, st
     if (mb) { const rdy = G.sys.dailyReady(); mb.visible = rdy; mb.position.y = world.things.mail.top + 0.25 + bob; if (world.mailFlag) world.mailFlag.rotation.x += ((rdy ? 0 : -1.5) - world.mailFlag.rotation.x) * Math.min(1, dt * 4); }
     G.sys.tick(dt); tickItems(dt);
     questT -= dt; if (questT < 0) { questT = 1; checkQuest(); }
-    saveT += dt; if (saveT > 10) { saveT = 0; save(); }
+    saveT += dt; if (saveT > 5) { saveT = 0; save(); }
   };
 
   // ---------- init from save ----------

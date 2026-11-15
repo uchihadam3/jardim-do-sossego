@@ -629,7 +629,7 @@ function buildGrass(scene, world, q, unlocked) {
   recs.forEach((d, i) => { setRec(i); if (d.zn > 0) zoneIdx[d.zn].push(i); });
   im.receiveShadow = true; im.frustumCulled = false; scene.add(im); world.grass = im;
   world.setGrass = (f) => { im.count = Math.max(1000, Math.round(recs.length * f)); }; world.setGrass(q.grass);
-  world.mowZone = (zn) => { for (const i of zoneIdx[zn]) setRec(i); im.instanceMatrix.needsUpdate = true; im.instanceColor.needsUpdate = true; };
+  world.mowZone = (zn) => { unlocked.add(zn); for (const i of zoneIdx[zn]) setRec(i); im.instanceMatrix.needsUpdate = true; im.instanceColor.needsUpdate = true; };
 
   // wild flowers in the meadow and in locked zones
   const fgeo = new THREE.BufferGeometry(); const fp = [], fc = [], fi = [], fn = [];
@@ -638,7 +638,7 @@ function buildGrass(scene, world, q, unlocked) {
   fgeo.setAttribute('position', new THREE.Float32BufferAttribute(fp, 3)); fgeo.setAttribute('color', new THREE.Float32BufferAttribute(fc, 3)); fgeo.setAttribute('normal', new THREE.Float32BufferAttribute(fn, 3)); fgeo.setIndex(fi);
   const wf = recs.map((d, i) => [d, i]).filter(([d]) => (d.zn === -1 || d.zn > 0) && d.hue > 0.93);
   const fm = new THREE.InstancedMesh(fgeo, mat, wf.length), pal = [0xffffff, 0xf7d84a, 0xf7a0c8, 0xb8a0f0, 0xf78a5a, 0xfff2a0];
-  const setF = (k) => { const [d] = wf[k], show = d.zn === -1 || !unlocked.has(d.zn); o.position.set(d.x + 0.05, 0, d.z); o.rotation.set(0, d.rot, 0); const s = show ? 0.09 * d.s : 0.0001; o.scale.set(s, show ? 0.3 * d.wild * 0.55 : 0.0001, s); o.updateMatrix(); fm.setMatrixAt(k, o.matrix); fm.setColorAt(k, c.set(pal[Math.floor(d.rot * 7) % pal.length])); };
+  const setF = (k) => { const [d] = wf[k], show = d.zn === -1 || (d.zn > 0 && !unlocked.has(d.zn)); o.position.set(d.x + 0.05, 0, d.z); o.rotation.set(0, d.rot, 0); const s = show ? 0.09 * d.s : 0.0001; o.scale.set(s, show ? 0.3 * d.wild * 0.55 : 0.0001, s); o.updateMatrix(); fm.setMatrixAt(k, o.matrix); fm.setColorAt(k, c.set(pal[Math.floor(d.rot * 7) % pal.length])); };
   wf.forEach((_, k) => setF(k)); fm.frustumCulled = false; scene.add(fm);
   const mow0 = world.mowZone; world.mowZone = (zn) => { mow0(zn); wf.forEach(([d], k) => { if (d.zn === zn) setF(k); }); fm.instanceMatrix.needsUpdate = true; };
 }

@@ -4,6 +4,7 @@ import { UPGRADES, STAGE_NAMES, LV, STYLE } from './game.js';
 import { SPECIES } from './species.js';
 import { ACH, DAILY } from './systems.js';
 import { CRITTERS } from './critters.js';
+import { toCode, fromCode, progress } from './save.js';
 import { DECO } from './decor.js';
 import { fabricCanvas } from './character.js';
 
@@ -218,10 +219,24 @@ export function createUI({ project, thumbs, audio }) {
       <label class="set" for="s-time"><span>Hora do dia</span><select id="s-time">${opt('auto', 'O dia passa sozinho', S.time)}${opt('dia', 'Sempre manhã', S.time)}${opt('tarde', 'Sempre entardecer', S.time)}${opt('noite', 'Sempre noite', S.time)}</select></label>
       <label class="set" for="s-q"><span>Qualidade da imagem</span><select id="s-q">${opt('auto', 'Automática', S.quality)}${opt('alta', 'Alta', S.quality)}${opt('media', 'Média', S.quality)}${opt('baixa', 'Leve (para aparelhos simples)', S.quality)}</select></label>
       <div class="howto"><b>Como jogar</b><ul><li>Toque num <i>+</i> para escolher uma planta.</li><li>Toque numa planta com a gotinha para regar.</li><li>Toque na flor com a moedinha para recolher o presente.</li><li>Arraste para girar a vista; use dois dedos ou a rodinha para aproximar.</li></ul></div>
+      <div class="howto save"><b>Seu jardim está guardado</b><p id="s-saved"></p>
+        <div class="c-act"><button class="btn ghost" id="s-copy">Copiar código do jardim</button>${window.__WEB || window.__APP ? '<a class="btn ghost" id="s-file" download="meu-jardim.txt">Salvar em arquivo</a>' : ''}<button class="btn ghost" id="s-in">Trazer um jardim</button></div>
+        <div id="s-box" hidden><textarea id="s-code" rows="3" placeholder="Cole aqui o código do jardim (começa com JARDIM1:)" aria-label="Código do jardim"></textarea><div class="c-act"><button class="btn" id="s-use">Usar este jardim</button></div></div>
+        ${U.store && U.store.old ? `<div class="c-act"><button class="btn honey" id="s-old">Recuperar o jardim anterior</button></div>` : ''}<p id="s-msg" class="hint" role="status"></p></div>
       <div class="row"><button class="btn ghost danger" id="s-reset">Recomeçar o jardim</button><button class="btn" data-close>Pronto</button></div>`, 'small');
+    { const st = U.store, G = U.game, msg = (t) => { const m = $('#s-msg'); if (m) m.textContent = t; };
+      G.save(true); const ago = st ? Math.max(0, Math.round((Date.now() - st.lastSaved) / 1000)) : 0;
+      $('#s-saved').textContent = st && st.where.length ? `Ele se salva sozinho o tempo todo, neste aparelho${st.cloud ? ' e também na sua conta Claude' : ''}. Último salvamento: agora mesmo. Atualizações do jogo não apagam nada.` : 'Este navegador não está deixando o jogo guardar dados. Copie o código do jardim para não perder nada.';
+      const code = () => toCode(G.state);
+      $('#s-copy').onclick = async () => { click(); const c = code(); try { await navigator.clipboard.writeText(c); msg('Código copiado. Guarde num lugar seguro (uma mensagem para você mesma, por exemplo).'); } catch (e) { $('#s-box').hidden = false; $('#s-code').value = c; $('#s-code').select(); msg('Selecione e copie o código acima.'); } };
+      const f = $('#s-file'); if (f) f.href = 'data:text/plain;charset=utf-8,' + encodeURIComponent(code());
+      $('#s-in').onclick = () => { click(); $('#s-box').hidden = false; $('#s-code').value = ''; $('#s-code').focus(); };
+      const adopt = async (s) => { G.save = () => {}; await st.adopt(s); location.reload(); };
+      $('#s-use').onclick = () => { const s = fromCode($('#s-code').value); if (!s) { audio.sfx('error'); msg('Não reconheci esse código. Ele precisa começar com JARDIM1: e estar inteiro.'); return; } const b = $('#s-use'); if (b.dataset.sure) adopt(s); else { b.dataset.sure = 1; b.textContent = 'Trocar o jardim atual por este?'; } };
+      const o = $('#s-old'); if (o) o.onclick = () => { if (o.dataset.sure) adopt(st.old); else { o.dataset.sure = 1; o.textContent = 'Trocar o jardim atual pelo anterior?'; } }; }
     const apply = () => { S.music = +$('#s-music').value; S.sfx = +$('#s-sfx').value; S.time = $('#s-time').value; const q = $('#s-q').value; if (q !== S.quality) { S.quality = q; U.onQuality && U.onQuality(q); } audio.setVolumes(S.music, S.sfx); U.game.save(); };
     ['#s-music', '#s-sfx', '#s-time', '#s-q'].forEach((id) => ($(id).oninput = $(id).onchange = apply));
-    $('#s-reset').onclick = (e) => { const b = e.currentTarget; if (b.dataset.sure) { U.game.reset(); U.onReset && U.onReset(); } else { b.dataset.sure = 1; b.textContent = 'Apagar tudo e recomeçar?'; } };
+    $('#s-reset').onclick = (e) => { const b = e.currentTarget; if (b.dataset.sure) { U.onReset && U.onReset(); } else { b.dataset.sure = 1; b.textContent = 'Apagar tudo e recomeçar?'; } };
   };
   // ---------- install on the computer ----------
   const install = () => {
