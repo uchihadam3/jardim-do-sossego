@@ -4,6 +4,7 @@ const SP = process.argv[2] || '.', URL = process.argv[3] || 'http://localhost:87
 const b = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 const ctx = await b.newContext({ viewport: { width: 1280, height: 800 } });
 const p = await ctx.newPage(); const errors = []; let fails = 0;
+p.setDefaultTimeout(240000); // the software renderer can take many seconds per frame once every place is planted
 p.on('console', (m) => { if (m.type() === 'error') errors.push('console: ' + m.text().slice(0, 200)); });
 p.on('pageerror', (e) => errors.push('pageerror: ' + e.message + ' | ' + (e.stack || '').split('\n').slice(1, 3).join(' | ')));
 const ok = (name, cond, extra = '') => { if (!cond) fails++; console.log((cond ? 'PASS ' : 'FAIL ') + name + (extra ? '  ' + extra : '')); };
