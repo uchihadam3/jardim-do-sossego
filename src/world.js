@@ -215,7 +215,7 @@ export function createWorld(scene, q, unlocked) {
       for (let r = 0; r < b.rows; r++) for (let c = 0; c < b.cols; c++) {
         const x = cx + (c - (b.cols - 1) / 2) * SLOT, z = cz + (r - (b.rows - 1) / 2) * SLOT;
         const front = b.rows === 1 || r === b.rows - 1;
-        const s = addSpot({ type: b.veg ? 'veg' : 'bed', zone: zn.id, pos: new V3(x, 0.16, z), stand: new V3(x, 0, front ? z1 + 0.5 : z0 - 0.5), scale: 1.75, pickR: 0.36, pickH: 0.5 });
+        const s = addSpot({ group: 'b' + cx + ',' + cz, type: b.veg ? 'veg' : 'bed', zone: zn.id, pos: new V3(x, 0.16, z), stand: new V3(x, 0, front ? z1 + 0.5 : z0 - 0.5), scale: 1.75, pickR: 0.36, pickH: 0.5 });
         s.soil = mound(grp, x, 0.15, z, 0.26);
       }
     }
@@ -246,14 +246,14 @@ export function createWorld(scene, q, unlocked) {
         sb.add(new THREE.SphereGeometry(0.22, 12, 6, 0, TAU, Math.PI / 2, Math.PI / 2), T(x, y, z), 0x8a6a48, 0.03);
         sb.add(new THREE.TorusGeometry(0.22, 0.018, 5, 14), mul(T(x, y, z), RX(Math.PI / 2)), 0x6e5038);
         for (let i = 0; i < 3; i++) { const a = (i / 3) * TAU + 0.5; sb.cyl(0.005, 0.005, 0.55, x + Math.cos(a) * 0.1, y + 0.26, z + Math.sin(a) * 0.1, 0x4a4a4a, 4, mul(RY(-a), RZ(0.4)), 0); }
-        const s = addSpot({ type: 'hang', zone: 1, pos: new V3(x, y, z), stand: new V3(x, 0, -4.35), scale: 1.35, pickR: 0.4, pickH: 0.9, pickY: -0.5, high: true });
+        const s = addSpot({ group: 'h', type: 'hang', zone: 1, pos: new V3(x, y, z), stand: new V3(x, 0, -4.35), scale: 1.35, pickR: 0.4, pickH: 0.9, pickY: -0.5, high: true });
         s.soil = mound(grp, x, y - 0.03, z, 0.2, 0.2);
       }
       for (const wx of WINDOWS) {
         sb.box(1.5, 0.2, 0.26, wx, 1.0, -6.78, 0x7e9a8c); sb.box(1.56, 0.03, 0.3, wx, 1.1, -6.78, 0x6e8a7c);
         for (const dx of [-0.6, 0.6]) sb.box(0.05, 0.14, 0.2, wx + dx, 0.86, -6.84, 0x5a4a3a);
         for (let i = -1; i <= 1; i++) {
-          const s = addSpot({ type: 'window', zone: 1, pos: new V3(wx + i * 0.46, 1.1, -6.76), stand: new V3(wx + i * 0.46, 0, -6.05), scale: 1.2, pickR: 0.24, pickH: 0.6, pickY: -0.1 });
+          const s = addSpot({ group: 'w' + wx, type: 'window', zone: 1, pos: new V3(wx + i * 0.46, 1.1, -6.76), stand: new V3(wx + i * 0.46, 0, -6.05), scale: 1.2, pickR: 0.24, pickH: 0.6, pickY: -0.1 });
           s.soil = mound(grp, wx + i * 0.46, 1.09, -6.76, 0.17, 0.2);
         }
       }
@@ -432,7 +432,7 @@ function buildPond(grp, sb, world, addSpot, zr) {
   for (const [dx, dz] of [[-1.0, 0.45], [0.85, -0.5], [0.15, 0.75], [1.35, 0.5]]) {
     const px = x + dx, pz = z + dz, len = Math.hypot(dx / rx, dz / rz), ex = x + (dx / len) * 1.0 * (1 + 0.32 / rx), ez = z + (dz / len) * (1 + 0.42 / rz);
     const a = Math.atan2(dz / rz, dx / rx);
-    addSpot({ type: 'pond', zone: 3, pos: new V3(px, 0.04, pz), stand: new V3(x + Math.cos(a) * (rx + 0.75), 0, z + Math.sin(a) * (rz + 0.75)), scale: 1.7, pickR: 0.5, pickH: 0.5 });
+    addSpot({ group: 'p', type: 'pond', zone: 3, pos: new V3(px, 0.04, pz), stand: new V3(x + Math.cos(a) * (rx + 0.75), 0, z + Math.sin(a) * (rz + 0.75)), scale: 1.7, pickR: 0.5, pickH: 0.5 });
   }
   // koi
   const koi = [];
@@ -519,7 +519,7 @@ function buildGreenhouse(grp, sb, world, addSpot, mound) {
   sb.box(w - 0.5, 0.05, 0.5, cx, 0.72, z0 + 0.42, 0xb98a5e); for (const x of [x0 + 0.4, x1 - 0.4]) for (const z of [z0 + 0.24, z0 + 0.6]) sb.box(0.05, 0.7, 0.05, x, 0.35, z, 0x8a6648);
   for (let i = 0; i < 6; i++) { const x = x0 + 0.45 + i * ((w - 0.9) / 5), y = 0.745, z = z0 + 0.42;
     sb.lathe([[0.001, 0], [0.11, 0], [0.12, 0.03], [0.16, 0.24], [0.18, 0.25], [0.18, 0.28], [0.155, 0.28], [0.15, 0.26]], x, y, z, [0xc66f48, 0x7fa8a0, 0xd8b06a][i % 3], 14, undefined, 0.02);
-    const s = addSpot({ type: 'green', zone: 8, pos: new V3(x, y + 0.27, z), stand: new V3(cx + (i - 2.5) * 0.12, 0, z1 + 0.45), scale: 1.15, pickR: 0.2, pickH: 0.8, pickY: -0.25 });
+    const s = addSpot({ group: 'g', type: 'green', zone: 8, pos: new V3(x, y + 0.27, z), stand: new V3(cx + (i - 2.5) * 0.12, 0, z1 + 0.45), scale: 1.15, pickR: 0.2, pickH: 0.8, pickY: -0.25 });
     s.soil = mound(grp, x, y + 0.255, z, 0.15, 0.2); }
 }
 

@@ -1,0 +1,24 @@
+import { createRequire } from 'module'; const { chromium } = createRequire(import.meta.url)('playwright');
+const SP = process.argv[2];
+const b = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
+const run = async (w, h, tag, mobile) => { const ctx = await b.newContext({ viewport: { width: w, height: h }, hasTouch: mobile, isMobile: mobile }); const p = await ctx.newPage(); const errs = []; p.on('pageerror', (e) => errs.push(e.message));
+  const ok = (n, c, x = '') => console.log((c ? 'PASS ' : 'FAIL ') + tag + ' ' + n + ' ' + x);
+  await p.goto('http://localhost:8765/local.html?q=baixa&nointro=1&speed=8'); await p.waitForFunction(() => window.__ready, null, { timeout: 300000 });
+  await p.evaluate(async () => { window.__game.game.save = () => {}; }); await p.click('#start'); await p.waitForTimeout(2500);
+  await p.evaluate(() => { const g = window.__game; g.state.coins = 9000; g.state.xp = 30000; g.state.recent = ['margarida', 'rosa_vermelha', 'lavanda']; g.ui.hud(); g.game.tapSpot(g.world.spots[0]); }); await p.waitForTimeout(900);
+  const m = await p.evaluate(() => { const sh = document.querySelector('#sheet'), g = sh.querySelector('.seeds'); return { tab: sh.querySelector('.fchip.on').textContent, cards: g.querySelectorAll('.seed').length, hscroll: g.scrollWidth > g.clientWidth + 1, vscroll: g.scrollHeight > g.clientHeight + 1, sheetH: Math.round(sh.getBoundingClientRect().height), chips: [...sh.querySelectorAll('.fchip')].map((c) => c.textContent).join(' | ') }; });
+  ok('picker opens on Recentes, no sideways scroll', m.tab.startsWith('Recentes') && !m.hscroll && !m.vscroll, JSON.stringify(m)); await p.screenshot({ path: `${SP}/pick_${tag}_rec.png` });
+  await p.click('[data-ptab="t1"]'); await p.waitForTimeout(500); const t1 = await p.evaluate(() => { const g = document.querySelector('#sheet .seeds'); return { cards: g.querySelectorAll('.seed').length, v: g.scrollHeight > g.clientHeight + 2 }; }); ok('"Simples" fits in the sheet', !t1.v, JSON.stringify(t1)); await p.screenshot({ path: `${SP}/pick_${tag}_t1.png` }); await p.click('[data-ptab="all"]'); await p.waitForTimeout(500);
+  const a = await p.evaluate(() => { const g = document.querySelector('#sheet .seeds'), cards = g.querySelectorAll('.seed'), r = g.getBoundingClientRect(); let vis = 0; cards.forEach((c) => { const q = c.getBoundingClientRect(); if (q.bottom <= r.bottom + 2) vis++; }); return { cards: cards.length, visible: vis, hscroll: g.scrollWidth > g.clientWidth + 1 }; });
+  ok('"Todas": grid without sideways scroll', !a.hscroll, JSON.stringify(a)); await p.screenshot({ path: `${SP}/pick_${tag}_all.png` });
+  await p.click('[data-ptab="season"]'); await p.waitForTimeout(400); await p.click('[data-fill]'); await p.waitForTimeout(500); await p.screenshot({ path: `${SP}/pick_${tag}_fill.png` });
+  await p.click('[data-ptab="rec"]'); await p.waitForTimeout(400); await p.click('.seed[data-id="margarida"]'); await p.waitForTimeout(800);
+  const q = await p.evaluate(() => { const g = window.__game; return { pending: g.world.spots.filter((s) => s.pending).length, tasks: g.game.tasks.length + (g.game.cur ? 1 : 0), coins: g.state.coins }; });
+  ok('fill the bed queues all 6 places', q.pending === 6 && q.coins === 9000 - 48, JSON.stringify(q));
+  const t0 = Date.now(); while (Date.now() - t0 < 200000) { if (await p.evaluate(() => !window.__game.game.cur && !window.__game.game.tasks.length)) break; await p.waitForTimeout(1000); }
+  const r = await p.evaluate(() => { const g = window.__game, ps = [0, 1, 2, 3, 4, 5].map((i) => g.state.plants[i]); return { planted: ps.filter(Boolean).length, wet: ps.filter((x) => x && x.wet > 0).length, watered: g.state.stats.watered }; });
+  ok('all six planted and watered', r.planted === 6 && r.wet === 6, JSON.stringify(r));
+  await p.click('#b-shop'); await p.waitForTimeout(800); const s1 = await p.evaluate(() => { const pn = document.querySelector('#modal .panel'); return { v: pn.scrollHeight > pn.clientHeight + 2, cards: pn.querySelectorAll('.dcard').length }; }); ok('shop section fits', s1.cards > 0, JSON.stringify(s1)); await p.screenshot({ path: `${SP}/pick_${tag}_shop.png` });
+  await p.evaluate(() => { window.__game.ui.closeModal(); window.__game.game.tapThing('eliane'); }); await p.waitForTimeout(800); const s2 = await p.evaluate(() => { const pn = document.querySelector('#modal .panel'); return { v: pn.scrollHeight > pn.clientHeight + 2, sw: pn.querySelectorAll('.sw').length }; }); ok('wardrobe group fits without scrolling', !s2.v, JSON.stringify(s2)); await p.screenshot({ path: `${SP}/pick_${tag}_style.png` });
+  console.log(tag, 'errors', errs.length, errs.slice(0, 3).join(' | ')); await ctx.close(); };
+await run(1280, 800, 'pc', false); await run(400, 820, 'cel', true); await b.close();

@@ -51,22 +51,26 @@ export function createUI({ project, thumbs, audio }) {
     if (!pickSpot) return; const G = U.game, lvl = G.level();
     sheet.querySelectorAll('.seed').forEach((b) => { const sp = SPECIES_LIST.find((s) => s.id === b.dataset.id); b.classList.toggle('poor', G.state.coins < sp.price && sp.lvl <= lvl); });
   };
-  U.picker = (spot, list) => {
+  let pickTab = null, fillBed = false;
+  U.picker = (spot, list, tab) => {
     U.closeCards(); pickSpot = spot; pickList = list; U.open = 'picker';
-    const lvl = U.game.level();
-    sheet.innerHTML = `<div class="sheet-h"><div><b>O que vamos plantar?</b><span>Plantas para ${SPOT_NAMES[spot.type]}</span></div><button class="x" aria-label="Fechar">${ICON('x')}</button></div><div class="seeds"></div>`;
-    const row = sheet.querySelector('.seeds');
-    const open = list.filter((x) => !x.locked && !x.off), shut = list.filter((x) => x.locked || x.off);
-    for (const { sp, locked, off } of [...open.reverse(), ...shut.filter((x) => x.off && !x.locked), ...shut.filter((x) => x.locked).slice(0, 6)]) {
-      const b = el('button', 'seed' + (locked || off ? ' locked' : ''));
-      b.dataset.id = sp.id;
-      b.innerHTML = `<div class="th"><img alt="" src="${thumbs[sp.id] || ''}">${locked ? `<em>Nível ${sp.lvl}</em>` : off ? `<em>${['Primavera', 'Verão', 'Outono', 'Inverno'][sp.season]}</em>` : ''}${!locked && !off && U.game.sys.inSeason(sp) ? '<i class="fav">na estação</i>' : ''}</div><b>${sp.name}</b><small>${sp.info}</small><div class="meta"><span class="price">${ICON('coin')}${sp.price}</span><span>${ICON('clock')}${fmtTime(sp.grow)}</span></div>`;
-      b.onclick = () => { if (U.game.choose(spot, sp.id)) U.closeCards(); };
-      row.appendChild(b);
-    }
+    const G = U.game, S = G.state, sibs = G.siblings(spot).length;
+    const open = list.filter((x) => !x.locked && !x.off).reverse(), soon = [...list.filter((x) => x.off && !x.locked), ...list.filter((x) => x.locked).slice(0, 4)];
+    const rec = S.recent.map((id) => open.find((x) => x.sp.id === id)).filter(Boolean).slice(0, 8);
+    const tier = (a, b) => open.filter((x) => x.cat !== 'rara' && x.sp.lvl >= a && x.sp.lvl <= b);
+    const tabs = [['rec', 'Recentes', rec], ['season', 'Na estação', open.filter((x) => G.sys.inSeason(x.sp))], ['t1', 'Simples', tier(1, 3)], ['t2', 'Especiais', tier(4, 7)], ['t3', 'Nobres', tier(8, 99)], ['folhagem', 'Folhagens', open.filter((x) => x.cat === 'folhagem')], ['horta', 'Horta', open.filter((x) => x.cat === 'horta')], ['rara', 'Raras', open.filter((x) => x.cat === 'rara')], ['all', 'Todas', open]]
+      .filter(([k, , l]) => l.length && (k === 'all' || k === 'rec' || (open.length > 8 && l.length < open.length)));
+    pickTab = tab || (tabs.some((t) => t[0] === pickTab) ? pickTab : rec.length ? 'rec' : 'all'); if (!tabs.some((t) => t[0] === pickTab)) pickTab = 'all';
+    const shown = tabs.find((t) => t[0] === pickTab)[2], many = fillBed && sibs > 1;
+    const cardHtml = ({ sp, locked, off }) => `<button class="seed ${locked || off ? 'locked' : ''}" data-id="${sp.id}" title="${sp.info}"><div class="th"><img alt="" src="${thumbs[sp.id] || ''}">${locked ? `<em>Nível ${sp.lvl}</em>` : off ? `<em>${['Primavera', 'Verão', 'Outono', 'Inverno'][sp.season]}</em>` : ''}${!locked && !off && G.sys.inSeason(sp) ? `<i class="fav" title="Na estação">${ICON('flower')}</i>` : ''}</div><b>${sp.name}</b><div class="meta"><span class="price">${ICON('coin')}${many ? sp.price * sibs : sp.price}</span><span>${ICON('clock')}${fmtTime(sp.grow)}</span></div></button>`;
+    sheet.innerHTML = `<div class="sheet-h"><div><b>O que vamos plantar?</b><span>Plantas para ${SPOT_NAMES[spot.type]}</span></div><button class="x" aria-label="Fechar">${ICON('x')}</button></div>
+      <div class="chipsrow">${tabs.length > 1 ? tabs.map(([k, n, l]) => `<button class="fchip ${k === pickTab ? 'on' : ''}" data-ptab="${k}">${n}<i>${l.length}</i></button>`).join('') : ''}${sibs > 1 ? `<button class="fchip fill ${fillBed ? 'on' : ''}" data-fill aria-pressed="${fillBed}">${fillBed ? 'Enchendo' : 'Encher'} os ${sibs} lugares vazios</button>` : ''}</div>
+      <div class="seeds">${shown.map(cardHtml).join('')}${pickTab === 'all' && soon.length ? `<div class="soon">Chegam mais adiante</div>${soon.map(cardHtml).join('')}` : ''}</div>`;
+    sheet.querySelectorAll('.seed').forEach((b) => (b.onclick = () => { const n = many ? G.chooseMany(spot, b.dataset.id) : G.choose(spot, b.dataset.id) ? 1 : 0; if (n) U.closeCards(); }));
+    sheet.querySelectorAll('[data-ptab]').forEach((b) => (b.onclick = () => { click(); U.picker(spot, list, b.dataset.ptab); }));
+    const fb = sheet.querySelector('[data-fill]'); if (fb) fb.onclick = () => { click(); fillBed = !fillBed; U.picker(spot, list, pickTab); };
     sheet.querySelector('.x').onclick = () => { click(); U.closeCards(); };
     sheet.classList.add('on'); refreshPicker();
-    const first = row.querySelector('.seed:not(.locked)'); if (first) row.scrollLeft = 0;
   };
 
   // ---------- plant card ----------
@@ -79,6 +83,7 @@ export function createUI({ project, thumbs, audio }) {
         <div class="c-row">${ICON('leaf')}<div class="bar g"><i style="width:${Math.round(i.grow * 100)}%"></i></div><small>${i.stage === 4 ? 'adulta' : 'faltam ' + fmtTime(i.left)}</small></div>
         <div class="c-row">${ICON('drop')}<div class="bar w"><i style="width:${Math.round(i.water * 100)}%"></i></div><small>${i.green ? 'ar úmido da estufa' : i.noWater ? 'vive na água' : i.water <= 0 ? 'com sede!' : 'regada'}</small></div>
         ${i.stage === 4 ? `<div class="c-row">${ICON('coin')}<div class="bar c"><i style="width:${Math.round((i.ready ? 1 : i.gift) * 100)}%"></i></div><small>${i.stock > 1 ? i.stock + ' presentes' : 'próximo presente'}</small></div>` : ''}
+        ${i.info ? `<div class="c-info">${i.info}</div>` : ''}
         ${i.inSeason ? `<div class="c-note">${ICON('flower')}Está na estação dela: cresce e rende mais.</div>` : ''}
         <div class="c-act">${i.noWater ? '' : `<button class="btn" data-a="water">${ICON('drop')}Regar</button>`}${i.stage < 4 && i.adubo > 0 ? `<button class="btn honey" data-a="fert">Adubar (${i.adubo})</button>` : ''}<button class="btn ghost" data-a="remove">Retirar</button><button class="btn ghost" data-a="close">Fechar</button></div></div>`;
       card.querySelectorAll('button').forEach((b) => (b.onclick = () => { click(); const a = b.dataset.a;
@@ -106,16 +111,19 @@ export function createUI({ project, thumbs, audio }) {
     const items = list.map((s) => `<div class="unl"><img alt="" src="${thumbs[s.id] || ''}"><span>${s.name}</span></div>`).join('');
     setTimeout(() => openModal(`<div class="lv-badge">${l}</div><h2>Nível ${l}!</h2><p>${list.length ? 'Novas plantas chegaram à sua coleção de sementes:' : 'Você está cada vez melhor com as plantas.'}</p><div class="unls">${items}</div><div class="row"><button class="btn big" data-close>Que lindo!</button></div>`, 'small center'), 900);
   };
+  let shopCat = null;
   const shop = (tab = 'decor') => {
     const G = U.game, S = G.state;
     const dec = DECOR.map((d) => { const own = S.decor.includes(d.id); return `<div class="item ${own ? 'own' : ''}"><div><b>${d.name}</b><small>${d.desc}</small></div>${own ? '<span class="tagok">No jardim</span>' : `<button class="btn" data-buy="d:${d.id}" ${S.coins >= d.price ? '' : 'disabled'}>${ICON('coin')}${d.price}</button>`}</div>`; }).join('');
     const lvl = G.level(), cats = [...new Set(DECO.map((d) => d.cat))];
-    const deco = cats.map((c) => `<div class="sgroup"><b>${c}</b><div class="dgrid">${DECO.filter((d) => d.cat === c).map((d) => { const have = S.stored[d.id] || 0, placed = S.items.filter((r) => r.k === d.id).length, locked = !have && lvl < d.lvl;
+    if (!shopCat) shopCat = cats[0];
+    const deco = [shopCat].filter((c) => c !== 'Clássicos').map((c) => `<div class="sgroup"><div class="dgrid">${DECO.filter((d) => d.cat === c).map((d) => { const have = S.stored[d.id] || 0, placed = S.items.filter((r) => r.k === d.id).length, locked = !have && lvl < d.lvl;
       return `<button class="dcard ${locked ? 'lk' : ''}" data-deco="${d.id}"><div class="th"><img alt="" src="${thumbs['d:' + d.id] || ''}">${placed ? `<em>${placed} no jardim</em>` : ''}</div><b>${d.name}</b><small>${d.info}</small><span class="dprice ${have ? 'have' : ''}">${have ? `Colocar (${have} guardado${have > 1 ? 's' : ''})` : locked ? 'Nível ' + d.lvl : `${ICON('coin')}${d.price}`}</span></button>`; }).join('')}</div></div>`).join('');
     const upg = UPGRADES.map((u) => { const own = S.upg.includes(u.id), locked = u.need && !S.upg.includes(u.need); return `<div class="item ${own ? 'own' : ''}"><div><b>${u.name}</b><small>${u.desc}</small></div>${own ? '<span class="tagok">Comprado</span>' : locked ? '<span class="taglock">Depois do anterior</span>' : `<button class="btn" data-buy="u:${u.id}" ${S.coins >= u.price ? '' : 'disabled'}>${ICON('coin')}${u.price}</button>`}</div>`; }).join('');
     openModal(`<div class="p-h"><h2>Lojinha do jardim</h2><span class="wallet">${ICON('coin')}${S.coins}</span><button class="x" data-close aria-label="Fechar">${ICON('x')}</button></div>
       <div class="tabs"><button class="${tab === 'decor' ? 'on' : ''}" data-tab="decor">Decoração</button><button class="${tab === 'upg' ? 'on' : ''}" data-tab="upg">Melhorias</button><button data-style>Cores e roupas</button></div>
-      ${tab === 'decor' ? `<p class="hint">Escolha um enfeite e depois toque no gramado para dizer onde ele fica. Dá para mover, girar e guardar quando quiser.</p>${deco}<div class="sgroup"><b>Clássicos, com lugar certo</b><div class="list">${dec}</div></div>` : `<div class="list">${upg}</div>`}`, tab === 'decor' ? 'wide' : '');
+      ${tab === 'decor' ? `<div class="chipsrow in">${[...cats, 'Clássicos'].map((c) => `<button class="fchip ${c === shopCat ? 'on' : ''}" data-cat="${c}">${c}</button>`).join('')}</div>${shopCat === 'Clássicos' ? `<p class="hint">Estes já vêm com o lugar certo no jardim.</p><div class="list">${dec}</div>` : `<p class="hint">Escolha um enfeite e toque no gramado para dizer onde ele fica. Dá para mover, girar e guardar.</p>${deco}`}` : `<div class="list">${upg}</div>`}`, tab === 'decor' ? 'wide' : '');
+    modal.querySelectorAll('[data-cat]').forEach((b) => (b.onclick = () => { click(); shopCat = b.dataset.cat; shop(tab); }));
     modal.querySelectorAll('[data-tab]').forEach((b) => (b.onclick = () => { click(); shop(b.dataset.tab); }));
     modal.querySelectorAll('[data-deco]').forEach((b) => (b.onclick = () => { click(); G.deco.buy(b.dataset.deco); }));
     modal.querySelectorAll('[data-style]').forEach((b) => (b.onclick = () => { click(); U.style('roupas'); }));
@@ -155,12 +163,14 @@ export function createUI({ project, thumbs, audio }) {
       <p class="hint">Nenhuma planta sofre fora da estação; ela só fica no ritmo normal.</p>`); };
 
   // ---------- "do seu jeito": clothes and house colours ----------
-  const fabricUrl = {};
+  const fabricUrl = {}; let styleGroup = null;
   U.style = (tab = 'roupas') => {
     const G = U.game, S = G.state, lvl = G.level(), hx = (n) => '#' + n.toString(16).padStart(6, '0');
     const dressHex = (STYLE.dress.opts.find((o) => o[0] === S.style.dress) || STYLE.dress.opts[0])[2];
-    const groups = Object.keys(STYLE).filter((k) => STYLE[k].tab === tab).map((k) => { const d = STYLE[k], cur = S.style[k] || d.opts[0][0];
-      return `<div class="sgroup"><b>${d.name}</b><div class="swatches">${d.opts.map((o, i) => { const own = i === 0 || S.style.own.includes(k + ':' + o[0]), need = (d.lv && d.lv[i]) || 1, locked = !own && lvl < need;
+    const keys = Object.keys(STYLE).filter((k) => STYLE[k].tab === tab); if (!keys.includes(styleGroup)) styleGroup = keys[0];
+    const gchips = `<div class="chipsrow in">${keys.map((k) => `<button class="fchip ${k === styleGroup ? 'on' : ''}" data-grp="${k}">${STYLE[k].short || STYLE[k].name}</button>`).join('')}</div>`;
+    const groups = [styleGroup].map((k) => { const d = STYLE[k], cur = S.style[k] || d.opts[0][0];
+      return `<div class="sgroup"><div class="swatches">${d.opts.map((o, i) => { const own = i === 0 || S.style.own.includes(k + ':' + o[0]), need = (d.lv && d.lv[i]) || 1, locked = !own && lvl < need;
         let face; if (typeof o[2] === 'number') face = `<i style="background:${hx(o[2])}"></i>`;
         else if (k === 'pattern') { const key = o[2] + dressHex; fabricUrl[key] ??= fabricCanvas(o[2], dressHex, null).toDataURL(); face = `<i class="fab" style="background-image:url(${fabricUrl[key]})"></i>`; }
         else if (thumbs[`o:${k}:${o[0]}`]) face = `<img alt="" src="${thumbs[`o:${k}:${o[0]}`]}">`;
@@ -168,11 +178,11 @@ export function createUI({ project, thumbs, audio }) {
         return `<button class="sw ${cur === o[0] ? 'on' : ''} ${locked ? 'lk' : ''} ${face.startsWith('<img') ? 'pic' : ''}" data-k="${k}" data-id="${o[0]}" title="${o[1]}" aria-label="${o[1]}">${face}${face.startsWith('<img') && !own ? `<small>${o[1]}</small>` : ''}<small>${own ? o[1] : locked ? 'Nível ' + need : `${ICON('coin')}${d.price}`}</small></button>`; }).join('')}</div></div>`; }).join('');
     const sc = modal.querySelector('.panel.style'), top = sc ? sc.scrollTop : 0;
     openModal(`<div class="p-h"><h2>Do seu jeito</h2><span class="wallet">${ICON('coin')}${S.coins}</span><button class="x" data-close aria-label="Fechar">${ICON('x')}</button></div>
-      <div class="tabs"><button class="${tab === 'roupas' ? 'on' : ''}" data-tab="roupas">Roupas</button><button class="${tab === 'acessorios' ? 'on' : ''}" data-tab="acessorios">Cabelo e acessórios</button><button class="${tab === 'casa' ? 'on' : ''}" data-tab="casa">Casa e cerca</button></div>${groups}
-      <p class="hint">Cada peça é comprada uma vez só; depois é só trocar quando quiser. Novas peças aparecem conforme o seu nível sobe.</p>`, 'style');
+      <div class="tabs"><button class="${tab === 'roupas' ? 'on' : ''}" data-tab="roupas">Roupas</button><button class="${tab === 'acessorios' ? 'on' : ''}" data-tab="acessorios">Cabelo e acessórios</button><button class="${tab === 'casa' ? 'on' : ''}" data-tab="casa">Casa e cerca</button></div>${gchips}${groups}`, 'style');
     const np = modal.querySelector('.panel.style'); if (np && U._styleTab === tab) np.scrollTop = top; U._styleTab = tab;
     modal.querySelectorAll('[data-tab]').forEach((b) => (b.onclick = () => { click(); U.style(b.dataset.tab); }));
     modal.querySelectorAll('.sw').forEach((b) => (b.onclick = () => { G.pickStyle(b.dataset.k, b.dataset.id); U.style(tab); }));
+    modal.querySelectorAll('[data-grp]').forEach((b) => (b.onclick = () => { click(); styleGroup = b.dataset.grp; U.style(tab); }));
   };
   // ---------- placing ornaments ----------
   const bar = $('#placebar');

@@ -19,18 +19,18 @@ export const UPGRADES = [
 // "do seu jeito": Eliane's wardrobe and the colours of the house. opts: [id, name, value, value2]; the first of each list is free.
 // lv[i] = level at which option i shows up in the shop (so there is always something new to unlock).
 export const STYLE = {
-  dress: { name: 'Cor do vestido', tab: 'roupas', price: 180, lv: [1, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], opts: [['salvia', 'Verde-sálvia', 0x7fa08a], ['ceu', 'Azul-céu', 0x7fa8c8], ['rosa', 'Rosa-antigo', 0xd89aa4], ['manteiga', 'Manteiga', 0xe8cf7a], ['lilas', 'Lilás', 0xa894c8], ['cereja', 'Cereja', 0xc8504a], ['menta', 'Menta', 0x9fd0b8], ['pessego', 'Pêssego', 0xf2b48a], ['marinho', 'Marinho', 0x3f5a8a], ['branco', 'Branco', 0xf6f1e6], ['uva', 'Uva', 0x7a4a8a], ['turquesa', 'Turquesa', 0x4aa8a8], ['coral', 'Coral', 0xe8806a]] },
+  dress: { name: 'Cor do vestido', short: 'Vestido', tab: 'roupas', price: 180, lv: [1, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], opts: [['salvia', 'Verde-sálvia', 0x7fa08a], ['ceu', 'Azul-céu', 0x7fa8c8], ['rosa', 'Rosa-antigo', 0xd89aa4], ['manteiga', 'Manteiga', 0xe8cf7a], ['lilas', 'Lilás', 0xa894c8], ['cereja', 'Cereja', 0xc8504a], ['menta', 'Menta', 0x9fd0b8], ['pessego', 'Pêssego', 0xf2b48a], ['marinho', 'Marinho', 0x3f5a8a], ['branco', 'Branco', 0xf6f1e6], ['uva', 'Uva', 0x7a4a8a], ['turquesa', 'Turquesa', 0x4aa8a8], ['coral', 'Coral', 0xe8806a]] },
   pattern: { name: 'Estampa', tab: 'roupas', price: 260, lv: [1, 2, 3, 4, 5, 6, 8, 10], opts: [['liso', 'Lisa', 'liso'], ['poa', 'Poá', 'poa'], ['listras', 'Listras', 'listras'], ['xadrez', 'Xadrez', 'xadrez'], ['florido', 'Florida', 'florido'], ['margaridas', 'Margaridas', 'margaridas'], ['coracoes', 'Corações', 'coracoes'], ['folhas', 'Folhagem', 'folhas']] },
   apron: { name: 'Avental', tab: 'roupas', price: 220, lv: [1, 2, 4, 6, 8], opts: [['sem', 'Sem avental', null], ['branco', 'Branco', 0xfaf6ee], ['rosa', 'Rosinha', 0xf9d8e0], ['azul', 'Azulzinho', 0xd4e6f4], ['amarelo', 'Amarelinho', 0xf9ecc0]] },
   blouse: { name: 'Blusa', tab: 'roupas', price: 140, lv: [1, 2, 3, 5, 7, 9], opts: [['branca', 'Branca', 0xfbf3e4], ['rosa', 'Rosa', 0xf7d0d8], ['azul', 'Azul', 0xcfe0f2], ['amarela', 'Amarela', 0xf7e8b0], ['lilas', 'Lilás', 0xe0d4f2], ['verde', 'Verde', 0xd4ecd0]] },
   boots: { name: 'Galochas', tab: 'roupas', price: 150, lv: [1, 1, 2, 3, 4, 5, 6, 8, 10, 12], opts: [['mostarda', 'Mostarda', 0xdfa53c], ['vermelha', 'Vermelhas', 0xd8483a], ['verde', 'Verdes', 0x5a9a5a], ['azul', 'Azuis', 0x4a7ab8], ['rosa', 'Rosa', 0xe88aa8], ['branca', 'Brancas', 0xf4f0e8], ['lilas', 'Lilases', 0xa88ad8], ['laranja', 'Laranja', 0xf2903a], ['preta', 'Pretas', 0x3a3a44], ['turquesa', 'Turquesa', 0x4ab0b0]] },
-  hat: { name: 'Na cabeça', tab: 'acessorios', price: 320, lv: [1, 2, 3, 4, 5, 6, 7, 1], opts: [['palha', 'Chapéu de palha', 'palha'], ['aba_larga', 'Aba larga com laço', 'aba_larga'], ['lenco', 'Lenço', 'lenco'], ['jardineira', 'Chapéu de pano', 'jardineira'], ['laco', 'Laço', 'laco'], ['boina', 'Boina', 'boina'], ['coroa', 'Coroa de flores', 'coroa'], ['nenhum', 'Nada', 'nenhum']] },
-  ribbon: { name: 'Cor da fita, laço ou lenço', tab: 'acessorios', price: 110, lv: [1, 1, 2, 3, 4, 5, 6, 8], opts: [['coral', 'Coral', 0xe8736a], ['azul', 'Azul', 0x5a8ac8], ['sol', 'Amarelo', 0xf2c84a], ['lilas', 'Lilás', 0x9a7ac8], ['branca', 'Branca', 0xfaf4ec], ['verde', 'Verde', 0x6aa87a], ['rosa', 'Rosa', 0xf08ab0], ['vinho', 'Vinho', 0x8a2a4a]] },
+  hat: { name: 'Na cabeça', short: 'Chapéu', tab: 'acessorios', price: 320, lv: [1, 2, 3, 4, 5, 6, 7, 1], opts: [['palha', 'Chapéu de palha', 'palha'], ['aba_larga', 'Aba larga com laço', 'aba_larga'], ['lenco', 'Lenço', 'lenco'], ['jardineira', 'Chapéu de pano', 'jardineira'], ['laco', 'Laço', 'laco'], ['boina', 'Boina', 'boina'], ['coroa', 'Coroa de flores', 'coroa'], ['nenhum', 'Nada', 'nenhum']] },
+  ribbon: { name: 'Cor da fita, laço ou lenço', short: 'Cor da fita', tab: 'acessorios', price: 110, lv: [1, 1, 2, 3, 4, 5, 6, 8], opts: [['coral', 'Coral', 0xe8736a], ['azul', 'Azul', 0x5a8ac8], ['sol', 'Amarelo', 0xf2c84a], ['lilas', 'Lilás', 0x9a7ac8], ['branca', 'Branca', 0xfaf4ec], ['verde', 'Verde', 0x6aa87a], ['rosa', 'Rosa', 0xf08ab0], ['vinho', 'Vinho', 0x8a2a4a]] },
   hair: { name: 'Penteado', tab: 'acessorios', price: 280, lv: [1, 2, 4, 6], opts: [['solto', 'Solto', 'solto'], ['rabo', 'Rabo de cavalo', 'rabo'], ['tranca', 'Trança de lado', 'tranca'], ['coque', 'Coque', 'coque']] },
-  scarf: { name: 'Lencinho no pescoço', tab: 'acessorios', price: 130, lv: [1, 2, 3, 5, 7, 9], opts: [['sem', 'Sem lencinho', null], ['vermelho', 'Vermelho', 0xd8483a], ['azul', 'Azul', 0x5a8ac8], ['amarelo', 'Amarelo', 0xf2c84a], ['rosa', 'Rosa', 0xf08ab0], ['verde', 'Verde', 0x6aa87a]] },
-  gloves: { name: 'Luvas de jardinagem', tab: 'acessorios', price: 130, lv: [1, 3, 5, 7, 9], opts: [['sem', 'Sem luvas', null], ['rosa', 'Rosa', 0xf0a0b8], ['verde', 'Verdes', 0x7ab87a], ['amarela', 'Amarelas', 0xf2d06a], ['azul', 'Azuis', 0x8ab8e0]] },
-  basket: { name: 'Cestinha de flores', tab: 'acessorios', price: 350, lv: [1, 4], opts: [['sem', 'Sem cestinha', null], ['com', 'No braço', true]] },
-  wall: { name: 'Paredes da casa', tab: 'casa', price: 400, house: true, lv: [1, 2, 4, 6, 8], opts: [['creme', 'Creme', 0xf6ecd9], ['amarela', 'Amarelinha', 0xf7e3a0], ['rosa', 'Rosada', 0xf2c8c2], ['azul', 'Azul-clarinha', 0xcfe0ea], ['verde', 'Verde-clarinha', 0xd4e6c8]] },
+  scarf: { name: 'Lencinho no pescoço', short: 'Lencinho', tab: 'acessorios', price: 130, lv: [1, 2, 3, 5, 7, 9], opts: [['sem', 'Sem lencinho', null], ['vermelho', 'Vermelho', 0xd8483a], ['azul', 'Azul', 0x5a8ac8], ['amarelo', 'Amarelo', 0xf2c84a], ['rosa', 'Rosa', 0xf08ab0], ['verde', 'Verde', 0x6aa87a]] },
+  gloves: { name: 'Luvas de jardinagem', short: 'Luvas', tab: 'acessorios', price: 130, lv: [1, 3, 5, 7, 9], opts: [['sem', 'Sem luvas', null], ['rosa', 'Rosa', 0xf0a0b8], ['verde', 'Verdes', 0x7ab87a], ['amarela', 'Amarelas', 0xf2d06a], ['azul', 'Azuis', 0x8ab8e0]] },
+  basket: { name: 'Cestinha de flores', short: 'Cestinha', tab: 'acessorios', price: 350, lv: [1, 4], opts: [['sem', 'Sem cestinha', null], ['com', 'No braço', true]] },
+  wall: { name: 'Paredes da casa', short: 'Paredes', tab: 'casa', price: 400, house: true, lv: [1, 2, 4, 6, 8], opts: [['creme', 'Creme', 0xf6ecd9], ['amarela', 'Amarelinha', 0xf7e3a0], ['rosa', 'Rosada', 0xf2c8c2], ['azul', 'Azul-clarinha', 0xcfe0ea], ['verde', 'Verde-clarinha', 0xd4e6c8]] },
   trim: { name: 'Porta e janelas', tab: 'casa', price: 300, house: true, lv: [1, 2, 4, 6, 8], opts: [['mar', 'Verde-mar', 0x5f8f8a, 0x6f93a8], ['vermelha', 'Vermelhas', 0xb8483a, 0xa8584a], ['marinho', 'Azul-marinho', 0x3f5f8a, 0x4a6a98], ['sol', 'Amarelas', 0xd8a83a, 0xc89a3a], ['lilas', 'Lilases', 0x8a6aa8, 0x9a7ab8]] },
   fence: { name: 'Cerca', tab: 'casa', price: 350, house: true, lv: [1, 3, 5, 7], opts: [['branca', 'Branca', 0xf3ede2], ['madeira', 'Madeira', 0xb98a5e], ['verde', 'Verde-menta', 0xa8c8a8], ['azul', 'Azul-claro', 0xb0c8dc]] },
 };
@@ -72,7 +72,7 @@ const QUESTS = [
 ];
 
 const fresh = () => ({ v: 1, coins: 45, xp: 0, zones: [0], decor: [], upg: [], plants: {}, quest: 0, album: [], stats: { planted: 0, watered: 0, collected: 0, blooms: 0, orders: 0, weeds: 0, prunes: 0, fert: 0 }, hour: 8.6, pace: PACE_V, days: 0, dayKey: '', last: Date.now(), t0: Date.now(), tips: {},
-  style: { own: [] }, items: [], stored: {}, basket: {}, orders: [], orderT: 0, adubo: 0, daily: { last: '', streak: 0, best: 0 }, weeds: {}, wilt: {}, ach: {}, log: [], hybrids: [], seen: [], seasonsSeen: [], rare: {}, paint: {}, outfit: {}, settings: { music: 0.6, sfx: 0.8, quality: 'auto', time: 'auto' } });
+  recent: [], style: { own: [] }, items: [], stored: {}, basket: {}, orders: [], orderT: 0, adubo: 0, daily: { last: '', streak: 0, best: 0 }, weeds: {}, wilt: {}, ach: {}, log: [], hybrids: [], seen: [], seasonsSeen: [], rare: {}, paint: {}, outfit: {}, settings: { music: 0.6, sfx: 0.8, quality: 'auto', time: 'auto' } });
 
 // Turns whatever was stored (possibly by an older version of the game) into a complete, current state.
 export function normalize(raw) {
@@ -80,7 +80,7 @@ export function normalize(raw) {
   if (raw.pace == null) raw.pace = 1;
   if (raw.days == null) { raw.days = Math.floor((Date.now() - (raw.t0 || Date.now())) / 86400000) + 1; raw.dayKey = ''; } // older saves counted calendar days
   const s = Object.assign(f, raw, { settings: Object.assign(fresh().settings, raw.settings), stats: Object.assign(fresh().stats, raw.stats), daily: Object.assign(fresh().daily, raw.daily) });
-  for (const k of ['zones', 'decor', 'upg', 'album', 'orders', 'log', 'hybrids', 'seen', 'seasonsSeen', 'items']) if (!Array.isArray(s[k])) s[k] = fresh()[k];
+  for (const k of ['zones', 'decor', 'upg', 'album', 'orders', 'log', 'hybrids', 'seen', 'seasonsSeen', 'items', 'recent']) if (!Array.isArray(s[k])) s[k] = fresh()[k];
   for (const k of ['plants', 'tips', 'basket', 'weeds', 'wilt', 'ach', 'rare', 'stored']) if (!s[k] || typeof s[k] !== 'object') s[k] = {};
   if (!s.style || !Array.isArray(s.style.own)) s.style = { own: [] }; if (!s.zones.includes(0)) s.zones.unshift(0); if (!s.t0) s.t0 = Date.now();
   return s;
@@ -185,23 +185,31 @@ export function createGame({ scene, world, fx, audio, gardener, nav, env, ui, st
   G.showCard = (spot) => {
     const p = S.plants[spot.id]; if (!p) return;
     ui.plantCard(spot, () => { const q = S.plants[spot.id]; if (!q) return null; const sp = SPECIES[q.sp];
-      return { sp, stage: stageOf(q), grow: clamp(q.grown / sp.grow, 0, 1), water: thirstOf(sp, spot) === 0 ? 1 : clamp(q.wet / waterMax(), 0, 1), noWater: thirstOf(sp, spot) === 0, green: spot.type === 'green', gift: q.grown >= sp.grow ? ((q.stock || 0) >= STOCK_MAX ? 1 : clamp(q.giftT / sp.every, 0, 1)) : 0, stock: q.stock || 0, ready: q.ready, left: Math.max(0, sp.grow - q.grown), adubo: S.adubo, inSeason: G.sys.inSeason(sp), weed: !!S.weeds[spot.id] }; },
+      return { sp, stage: stageOf(q), grow: clamp(q.grown / sp.grow, 0, 1), water: thirstOf(sp, spot) === 0 ? 1 : clamp(q.wet / waterMax(), 0, 1), noWater: thirstOf(sp, spot) === 0, green: spot.type === 'green', gift: q.grown >= sp.grow ? ((q.stock || 0) >= STOCK_MAX ? 1 : clamp(q.giftT / sp.every, 0, 1)) : 0, stock: q.stock || 0, ready: q.ready, left: Math.max(0, sp.grow - q.grown), info: sp.info, adubo: S.adubo, inSeason: G.sys.inSeason(sp), weed: !!S.weeds[spot.id] }; },
     { water: () => pushAct('water', spot), remove: () => pushAct('remove', spot), fert: () => G.fertilize(spot) });
   };
   const fits = (s, spot) => s.spots.includes(spot.type) || (spot.type === 'green' && s.spots.includes('pot'));
-  const speciesFor = (spot) => SPECIES_LIST.filter((s) => fits(s, spot) && (!s.hybrid || S.hybrids.includes(s.id))).map((s) => ({ sp: s, locked: s.lvl > level(), off: outOfSeason(s, spot), afford: S.coins >= s.price }));
-  G.choose = (spot, id) => {
+  const speciesFor = (spot) => SPECIES_LIST.filter((s) => fits(s, spot) && (!s.hybrid || S.hybrids.includes(s.id))).map((s) => ({ sp: s, locked: s.lvl > level(), off: outOfSeason(s, spot), afford: S.coins >= s.price, cat: s.hybrid ? 'rara' : s.veg ? 'horta' : s.foliage ? 'folhagem' : 'flor' }));
+  G.speciesFor = speciesFor;
+  // empty places that belong to the same bed / window box / shelf as this one (the tapped one first)
+  G.siblings = (spot) => (spot.group ? world.spots.filter((s) => s.group === spot.group && s.zone === spot.zone && !S.plants[s.id] && !s.pending).sort((a, b) => (a === spot ? -1 : b === spot ? 1 : a.pos.distanceTo(spot.pos) - b.pos.distanceTo(spot.pos))) : [spot]);
+  G.choose = (spot, id, opts = {}) => {
     const sp = SPECIES[id];
     if (sp.lvl > level()) { audio.sfx('error'); ui.toast(`${sp.name} chega no nível ${sp.lvl}`, 'warn'); return false; }
     if (outOfSeason(sp, spot)) { audio.sfx('error'); ui.toast(`${sp.name} só nasce ${['na primavera', 'no verão', 'no outono', 'no inverno'][sp.season]} (ou na estufa)`, 'warn'); return false; }
     if (S.coins < sp.price) { audio.sfx('error'); ui.toast('Faltam moedas. Recolha os presentes das flores!', 'warn'); return false; }
     if (S.plants[spot.id] || spot.pending) return false;
     if (G.tasks.length >= 26) { audio.sfx('error'); ui.toast('A Eliane já tem bastante coisa para fazer. Espere ela terminar um pouquinho.', 'info'); return false; } // never charge for a seed she cannot queue
-    S.coins -= sp.price; spot.pending = id; ui.hud(); audio.sfx('buy', 0.7);
+    S.coins -= sp.price; spot.pending = id; ui.hud(); if (!opts.quiet) audio.sfx('buy', 0.7);
+    S.recent = [id, ...S.recent.filter((x) => x !== id)].slice(0, 12);
     pushAct('plant', spot, { sp: id });
-    if (thirstOf(sp, spot) !== 0 && !has('sprinkler')) pushAct('water', spot);
+    if (!opts.noWater && thirstOf(sp, spot) !== 0 && !has('sprinkler')) pushAct('water', spot);
     return true;
   };
+  // fill every empty place of the bed with the same plant: plant them all first, then water the lot
+  G.chooseMany = (spot, id) => { const list = G.siblings(spot), done = []; for (const s of list) { if (done.length && (S.coins < SPECIES[id].price || G.tasks.length >= 24)) break; if (!G.choose(s, id, { noWater: true, quiet: done.length > 0 })) { if (!done.length) return 0; break; } done.push(s); }
+    if (!has('sprinkler')) for (const s of done) if (thirstOf(SPECIES[id], s) !== 0) pushAct('water', s);
+    if (done.length > 1) ui.toast(`${done.length} mudas de ${SPECIES[id].name} a caminho do canteiro`, 'good'); return done.length; };
   G.offerZone = (id) => {
     const z = ZONES[id]; if (S.zones.includes(id)) return;
     ui.zoneOffer(z, S.coins >= z.cost, () => {
@@ -303,6 +311,7 @@ export function createGame({ scene, world, fx, audio, gardener, nav, env, ui, st
     if (t.kind !== 'plant' && !S.plants[t.spot.id]) return startNext();
     if (t.kind === 'collect' && !S.plants[t.spot.id].ready && !S.rare[t.spot.id]) return startNext();
     if ((t.kind === 'weed' && !S.weeds[t.spot.id]) || (t.kind === 'prune' && !S.wilt[t.spot.id])) return startNext();
+    if (t.kind === 'water' && S.plants[t.spot.id].wet >= waterMax() * 0.9) return startNext(); // a neighbour's watering already reached it
     t.path = walkTo(t.spot.stand.x, t.spot.stand.z); t.phase = 'walk'; G.cur = t;
   };
 
