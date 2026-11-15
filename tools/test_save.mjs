@@ -1,6 +1,6 @@
 // Saving: survives reloads, an "update" of the game files, a wiped localStorage, and travels by backup code.
 import { createRequire } from 'module'; const { chromium } = createRequire(import.meta.url)('playwright');
-const URL = process.argv[2] || 'http://localhost:8765/local.html';
+const URL = /^http/.test(process.argv[2] || '') ? process.argv[2] : 'http://localhost:8765/local.html';
 const b = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 const ctx = await b.newContext({ viewport: { width: 1000, height: 700 }, permissions: ['clipboard-read', 'clipboard-write'] }); const p = await ctx.newPage(); const errors = [];
 p.on('pageerror', (e) => errors.push(e.message)); p.on('console', (m) => { if (m.type() === 'error') errors.push(m.text().slice(0, 160)); });

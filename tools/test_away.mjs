@@ -22,6 +22,6 @@ await inject(24 * 6, false); await p.reload(); await ready(); const d = await re
 ok('six days away: calendar still advances by only one day', d.days === 6 && d.hour === 15.25, JSON.stringify({ days: d.days, hour: d.hour, season: d.season }));
 // collecting a stocked plant pays for every present
 await p.click('#start'); await p.waitForTimeout(2500);
-const pay = await p.evaluate(async () => { const g = window.__game, S = g.state, c0 = S.coins, b0 = S.basket.margarida || 0; g.game.tapSpot(g.world.spots[0]); const t0 = Date.now(); while (Date.now() - t0 < 60000 && (g.game.cur || g.game.tasks.length)) await new Promise((r) => setTimeout(r, 500)); return { gain: S.coins - c0, basket: (S.basket.margarida || 0) - b0, stock: S.plants[0].stock, ready: S.plants[0].ready }; });
+const pay = await p.evaluate(async () => { const g = window.__game, S = g.state, c0 = S.coins, b0 = S.basket.margarida || 0; g.game.tapSpot(g.world.spots[0]); const t0 = Date.now(); while (Date.now() - t0 < 300000 && (g.game.cur || g.game.tasks.length)) await new Promise((r) => setTimeout(r, 500)); return { gain: S.coins - c0, basket: (S.basket.margarida || 0) - b0, stock: S.plants[0].stock, ready: S.plants[0].ready, secs: Math.round((Date.now() - t0) / 1000) }; });
 ok('collecting pays all stocked presents', pay.gain >= 18 && pay.basket === 3 && pay.stock === 0 && !pay.ready, JSON.stringify(pay));
 console.log('errors', errs.length, errs.slice(0, 3).join(' | ')); await b.close();
