@@ -92,7 +92,7 @@ await ev(() => window.__game.game.showCard(window.__game.world.spots[5])); await
 ok('plant removed from its card', await ev(() => !window.__game.state.plants[5]));
 
 // 8. shop: classics, upgrades, free ornaments with real taps
-await p.click('#b-shop'); await wait(900); const classics = await p.$$eval('[data-buy^="d:"]', (e) => e.length);
+await p.click('#b-shop'); await wait(900); await p.click('[data-cat="Clássicos"]'); await wait(500); const classics = await p.$$eval('[data-buy^="d:"]', (e) => e.length);
 for (let i = 0; i < classics; i++) { const e = await p.$('[data-buy^="d:"]'); if (!e) break; await e.click(); await wait(350); }
 await p.click('[data-tab="upg"]'); await wait(400); for (let i = 0; i < 3; i++) { const e = await p.$('[data-buy^="u:"]'); if (!e) break; await e.click(); await wait(350); }
 ok('classic decorations and upgrades bought', await ev(() => window.__game.state.decor.length === 6 && window.__game.state.upg.length === 3)); await closeAll();
@@ -109,8 +109,8 @@ ok('tap on an ornament opens its card', await ev(() => document.querySelector('#
 await p.click('#card [data-a="turn"]'); await p.click('#card [data-a="store"]'); await wait(600); ok('ornament stored', await ev(() => Object.values(window.__game.state.stored).reduce((a, b) => a + b, 0) === 1));
 
 // 9. album tabs, settings, photo mode
-let tabsOk = true; await p.click('#b-album'); await wait(700); for (const t of ['flores', 'raras', 'bichos', 'conq', 'diario']) { const e = await p.$(`[data-tab="${t}"]`); if (!e) { tabsOk = false; continue; } await e.click(); await wait(400); }
-ok('album: five tabs open', tabsOk); await closeAll();
+let tabsOk = true; await p.click('#b-album'); await wait(700); for (const t of ['flores', 'raras', 'bichos', 'receitas', 'conq', 'diario']) { if (!(await ev((k) => { const e = document.querySelector(`#modal [data-tab="${k}"]`); if (e) e.click(); return !!e; }, t))) tabsOk = false; await wait(900); } // plain DOM clicks: the software renderer is busy drawing hundreds of little pictures
+ok('album: six tabs open', tabsOk); await closeAll();
 await p.click('#season'); await wait(600); ok('season panel opens', await modalOn()); await closeAll();
 await p.click('#b-set'); await wait(600); await p.selectOption('#s-time', 'noite'); await p.selectOption('#s-q', 'media'); await wait(2500); await p.selectOption('#s-q', 'baixa'); await p.selectOption('#s-time', 'auto'); await closeAll();
 ok('settings changed without errors', true);
