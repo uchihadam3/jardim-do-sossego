@@ -55,10 +55,24 @@ export function attachSystems(G, { S, world, fx, audio, gardener, ui, addCoins, 
   const day = () => Math.floor((Date.now() - S.t0) / 86400000);
 
   // ---------- seasons ----------
-  sys.season = () => { const d = day(), i = Math.floor(d / SEASON_DAYS) % 4; return { ...SEASONS[i], day: (d % SEASON_DAYS) + 1, of: SEASON_DAYS, left: SEASON_DAYS - (d % SEASON_DAYS) }; };
+  const seasonOv = new URLSearchParams(location.search).get('season');
+  sys.season = () => { const d = seasonOv != null ? +seasonOv * SEASON_DAYS : day(), i = Math.floor(d / SEASON_DAYS) % 4; return { ...SEASONS[i], day: (d % SEASON_DAYS) + 1, of: SEASON_DAYS, left: SEASON_DAYS - (d % SEASON_DAYS) }; };
   sys.inSeason = (sp) => sp.loves != null && sp.loves.includes(sys.season().id);
   sys.growMul = (id, sp) => (sys.inSeason(sp) ? 1.5 : 1) * (world.spots[id].type === 'green' ? 2 : 1);
   sys.giftMul = (sp) => (sys.inSeason(sp) ? 1.5 : 1);
+
+  // ---------- rarities: two different flowers blooming side by side may leave a special seed ----------
+  const HYB = SPECIES_LIST.filter((s) => s.hybrid);
+  sys.afterGift = (id) => {
+    const p = S.plants[id], spot = world.spots[id]; if (!p || S.rare[id]) return;
+    for (const oid in S.plants) { if (oid === String(id)) continue; const q = S.plants[oid], o = world.spots[oid];
+      if (q.sp === p.sp || q.grown < SPECIES[q.sp].grow || o.pos.distanceTo(spot.pos) > 1.25) continue;
+      const h = HYB.find((x) => !S.hybrids.includes(x.id) && x.hybrid.includes(p.sp) && x.hybrid.includes(q.sp) && !Object.values(S.rare).includes(x.id));
+      if (h && Math.random() < 0.3) { S.rare[id] = h.id; ui.toast('Uma semente diferente apareceu entre as flores!', 'good'); audio.sfx('bloom', 0.7, 1.3); return; } }
+  };
+  sys.takeRare = (id) => { const hid = S.rare[id]; delete S.rare[id]; const h = SPECIES[hid]; if (!h || S.hybrids.includes(hid)) return;
+    S.hybrids.push(hid); addXp(25); audio.sfx('levelup'); fx.burst(world.spots[id].pos, [0xffe680, 0xff9ab8, 0xb48af0, 0xffffff], 50, 1.4); ui.rare(h); sys.log(`Descobri uma raridade: ${h.name}.`); save(); };
+  sys.hybrids = HYB;
 
   // ---------- diary ----------
   sys.log = (text) => { S.log.push({ d: day() + 1, t: text }); if (S.log.length > 60) S.log.shift(); };

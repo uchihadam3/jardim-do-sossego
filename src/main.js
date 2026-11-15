@@ -51,7 +51,7 @@ if (window.__WEB && 'serviceWorker' in navigator) {
 async function boot() {
   const state = loadState();
   const demo = params.get('demo'); // preview a grown garden without touching the save
-  if (demo) { state.zones = [0, 1, 2, 3, 4, 5, 6]; state.decor = ['lanternas', 'banco', 'bebedouro', 'casinha', 'carrinho', 'anao']; state.coins = 999; state.xp = 3000; state.settings.time = 'fixo'; state.hour = +(params.get('h') || 16.8); }
+  if (demo) { state.zones = [0, 1, 2, 3, 4, 5, 6, 7, 8]; state.decor = ['lanternas', 'banco', 'bebedouro', 'casinha', 'carrinho', 'anao']; state.coins = 999; state.xp = 3000; state.settings.time = 'fixo'; state.hour = +(params.get('h') || 16.8); }
   const mobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && Math.min(screen.width, screen.height) < 820);
   let qName = params.get('q') || (state.settings.quality !== 'auto' ? state.settings.quality : mobile ? 'media' : 'alta');
   const canvas = $('#stage');
@@ -154,6 +154,7 @@ async function boot() {
     if (started) { for (let i = 0; i < speed; i++) game.update(dt); startT += params.get('nointro') ? 9 : dt; }
     gardener.update(dt, time);
     env.setHour(state.hour); world.setNight(env.night); world.update(dt, time); env.update(dt, camera.position);
+    { const se = game.sys.season().id; if (se !== fx.season) { world.setSeason(se, fx.season === -1); fx.season = se; } }
     fx.update(dt, time, env, camera, world.chimney); audio.update(env.night, fx.rain);
     windU.uWind.value = 1 + fx.rain * 0.8;
     // camera

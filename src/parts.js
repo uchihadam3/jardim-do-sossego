@@ -335,7 +335,7 @@ export function habitTree(b, rng, P, g, open) {
   // leafy masses: a soft core blob per branch end, dressed with leaf / blossom cards
   const masses = ends.map((e) => ({ c: e.clone().add(new V3(0, R * 0.08, 0)), r: R * rng.range(0.27, 0.4) }));
   masses.push({ c: new V3(top.x, top.y + R * 0.75, top.z), r: R * 0.45 });
-  const coreC = P.blossom ? mixc(shade(leafCols[0], 0.6), shade(P.blossom.cols[0], 0.8), clamp(bloom * 1.4, 0, 1) * (1 - fol * 0.8)) : shade(leafCols[0], 0.6);
+  const coreC = P.blossom && bloom > 0.5 && fol < 0.6 ? shade(P.blossom.cols[0], 0.9) : shade(leafCols[0], 0.6);
   for (const m of masses) b.blob(mul(T(m.c.x, m.c.y, m.c.z), RY(rng() * 3)), m.r * 0.66, m.r * 0.52, shade(coreC, 0.62), shade(coreC, 1.05), 7, 5);
   const cloud = (count, size, cols, sizeJ, push) => {
     for (let i = 0; i < count; i++) {
@@ -348,11 +348,11 @@ export function habitTree(b, rng, P, g, open) {
       const M = new THREE.Matrix4().makeBasis(tx, ty, dir.clone().addScaledVector(ty, rng.range(-0.5, 0.5)).normalize()).setPosition(q);
       const c = jitterc(rng.pick(cols), rng, 0.05), s = size * (1 - sizeJ + rng() * sizeJ * 2);
       const ln = nrm.clone().applyMatrix3(new THREE.Matrix3().setFromMatrix4(M).invert()).normalize();
-      b.card(M, s * 0.8, s, shade(c, 0.74), c, ln.x, ln.y, ln.z, 0.25);
+      b.card(M, s * 0.52, s * 1.12, shade(c, 0.74), c, ln.x, ln.y, ln.z, 0.25);
     }
   };
-  cloud(Math.round((P.leaves ?? 800) * g * fol), (P.leafSize ?? 0.19) * (0.6 + 0.4 * g), leafCols, 0.3, 0);
-  if (bloom > 0 && P.blossom) cloud(Math.round(P.blossom.n * g * lerp(0.3, 1, bloom)), P.blossom.size * lerp(0.55, 1, bloom), bloom < 0.3 ? P.blossom.buds ?? P.blossom.cols : P.blossom.cols, 0.3, 0.02);
+  cloud(Math.round((P.leaves ?? 800) * 1.35 * g * fol), (P.leafSize ?? 0.19) * (0.6 + 0.4 * g), leafCols, 0.3, 0);
+  if (bloom > 0 && P.blossom) cloud(Math.round(P.blossom.n * 1.3 * g * lerp(0.3, 1, bloom)), P.blossom.size * lerp(0.55, 1, bloom), bloom < 0.3 ? P.blossom.buds ?? P.blossom.cols : P.blossom.cols, 0.3, 0.02);
   if (bloom > 0.6 && P.fruit) for (let i = 0; i < P.fruit.n; i++) {
     const m = masses[Math.floor(rng() * masses.length)];
     dir.set(rng.range(-1, 1), rng.range(-0.9, 0.2), rng.range(-1, 1)).normalize();

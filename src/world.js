@@ -46,6 +46,8 @@ export const ZONES = [
   { id: 4, name: 'Alameda dos arcos', cost: 2800, rect: [-5, 5, 5, 14.3], tag: [0, 9.3], desc: 'Arcos para trepadeiras e quatro canteiros floridos.' },
   { id: 5, name: 'Pomar', cost: 5500, rect: [5, 12.3, 5, 14.3], tag: [8.7, 9.6], desc: 'Espaço para três árvores e canteiros à sombra.' },
   { id: 6, name: 'Prado das flores', cost: 9000, rect: [-12.3, -5, 5, 14.3], tag: [-8.7, 9.6], desc: 'Canteiros grandes para um mar de flores.' },
+  { id: 7, name: 'Horta', cost: 350, rect: [-9.45, -5.2, -8.75, -5.2], tag: [-7.3, -6.9], desc: 'Oito canteirinhos para hortaliças, temperos e morangos.' },
+  { id: 8, name: 'Estufa', cost: 3200, rect: [5.45, 9.25, -8.75, -5.5], tag: [7.35, -5.9], desc: 'Seis vasos onde tudo cresce em dobro, sem regar e em qualquer estação. Só aqui nascem as plantas mais raras.' },
 ];
 const POND = { x: -8.6, z: -0.6, rx: 2.5, rz: 1.9 };
 const BEDS = [
@@ -54,6 +56,7 @@ const BEDS = [
   { z: 3, x: -8.6, zc: -4.3, cols: 5, rows: 1 },
   { z: 4, x: -2.9, zc: 7.6, cols: 3, rows: 2 }, { z: 4, x: 2.9, zc: 7.6, cols: 3, rows: 2 }, { z: 4, x: -2.9, zc: 11.6, cols: 3, rows: 2 }, { z: 4, x: 2.9, zc: 11.6, cols: 3, rows: 2 },
   { z: 5, x: 10.4, zc: 6.6, cols: 3, rows: 1 }, { z: 5, x: 10.2, zc: 13.0, cols: 3, rows: 1 },
+  { z: 7, x: -7.3, zc: -5.95, cols: 4, rows: 1, veg: true }, { z: 7, x: -7.3, zc: -7.85, cols: 4, rows: 1, veg: true },
   { z: 6, x: -8.7, zc: 7.2, cols: 4, rows: 2 }, { z: 6, x: -8.7, zc: 10.5, cols: 4, rows: 2 }, { z: 6, x: -8.7, zc: 13.3, cols: 4, rows: 1 },
 ];
 const SLOT = 0.82;
@@ -103,6 +106,7 @@ function waterNormals() {
 
 const inRect = (x, z, r, pad = 0) => x > r[0] - pad && x < r[1] + pad && z > r[2] - pad && z < r[3] + pad;
 const bedRect = (b) => { const w = b.cols * SLOT + 0.3, d = b.rows * SLOT + 0.3; return [b.x - w / 2, b.x + w / 2, b.zc - d / 2, b.zc + d / 2]; };
+const GREEN = [5.7, 9.0, -8.35, -5.85];
 const inPond = (x, z, pad = 0) => ((x - POND.x) / (POND.rx + pad)) ** 2 + ((z - POND.z) / (POND.rz + pad)) ** 2 < 1;
 export const zoneAt = (x, z) => { for (let i = ZONES.length - 1; i >= 0; i--) if (i !== 1 && inRect(x, z, ZONES[i].rect)) return i; return -1; };
 const onPath = (x, z) => (Math.abs(x) < 0.75 && z > -4.6 && z < 15.5) || (z > 3.6 && z < 4.9 && Math.abs(x) < 12.3);
@@ -131,7 +135,7 @@ export function createWorld(scene, q, unlocked) {
     ring(60, 150, 9, col(0x7eac54), col(0x6a9c5a), 1.3); ring(120, 240, 22, col(0x6a9c62), col(0x5f8f7a), 4.1);
     const m = new THREE.Mesh(b.build(), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 })); scene.add(m);
     // background trees (3 variants, instanced around)
-    const treeMat = makePlantMaterial({ sway: 0.03, glow: 0.06 });
+    const treeMat = makePlantMaterial({ sway: 0.03, glow: 0.06 }); world.bgTreeMat = treeMat;
     const variants = [
       { H: 1.6, R: 1.9, trunkR: 0.14, limbs: 6, leaves: 520, leafSize: 0.42, leafCols: [col(0x4c8a3a), col(0x3a7a34), col(0x6aa04a)] },
       { H: 2.4, R: 1.6, trunkR: 0.13, limbs: 6, leaves: 480, leafSize: 0.4, leafCols: [col(0x3a7a44), col(0x2f6a3a), col(0x5a9a4a)] },
@@ -199,7 +203,7 @@ export function createWorld(scene, q, unlocked) {
     const grp = new THREE.Group(), sb = new SB(100 + zn.id), zr = mulberry(200 + zn.id);
     world.zoneGroups[zn.id] = grp; scene.add(grp);
     for (const b of BEDS.filter((b) => b.z === zn.id)) {
-      const [x0, x1, z0, z1] = bedRect(b), w = x1 - x0, d = z1 - z0, cx = b.x, cz = b.zc, wood = [0x8a6648, 0x7d5c40, 0x94704e];
+      const [x0, x1, z0, z1] = bedRect(b), w = x1 - x0, d = z1 - z0, cx = b.x, cz = b.zc, wood = b.veg ? [0xc8a878, 0xbc9c6c, 0xd2b484] : [0x8a6648, 0x7d5c40, 0x94704e];
       sb.box(w + 0.16, 0.2, 0.09, cx, 0.1, z0, zr.pick(wood)); sb.box(w + 0.16, 0.2, 0.09, cx, 0.1, z1, zr.pick(wood));
       sb.box(0.09, 0.2, d, x0, 0.1, cz, zr.pick(wood)); sb.box(0.09, 0.2, d, x1, 0.1, cz, zr.pick(wood));
       for (const [px, pz] of [[x0, z0], [x1, z0], [x0, z1], [x1, z1]]) sb.box(0.12, 0.27, 0.12, px, 0.135, pz, 0x6e5038);
@@ -209,7 +213,7 @@ export function createWorld(scene, q, unlocked) {
       for (let r = 0; r < b.rows; r++) for (let c = 0; c < b.cols; c++) {
         const x = cx + (c - (b.cols - 1) / 2) * SLOT, z = cz + (r - (b.rows - 1) / 2) * SLOT;
         const front = b.rows === 1 || r === b.rows - 1;
-        const s = addSpot({ type: 'bed', zone: zn.id, pos: new V3(x, 0.16, z), stand: new V3(x, 0, front ? z1 + 0.5 : z0 - 0.5), scale: 1.75, pickR: 0.36, pickH: 0.5 });
+        const s = addSpot({ type: b.veg ? 'veg' : 'bed', zone: zn.id, pos: new V3(x, 0.16, z), stand: new V3(x, 0, front ? z1 + 0.5 : z0 - 0.5), scale: 1.75, pickR: 0.36, pickH: 0.5 });
         s.soil = mound(grp, x, 0.15, z, 0.26);
       }
     }
@@ -253,6 +257,8 @@ export function createWorld(scene, q, unlocked) {
       }
     }
     if (zn.id === 3) buildPond(grp, sb, world, addSpot, zr);
+    if (zn.id === 7) buildScarecrow(sb, -9.55, -6.9);
+    if (zn.id === 8) buildGreenhouse(grp, sb, world, addSpot, mound);
     if (sb.g.length) grp.add(sb.mesh(propMat));
     // locked overlay: wooden sign
     if (zn.cost > 0) {
@@ -290,12 +296,18 @@ export function createWorld(scene, q, unlocked) {
     for (const m of world.nightMats) m.emissiveIntensity = m.userData.e * n;
     for (const l of world.lamps) { l.intensity = l.userData.i * n * (l.parent.visible ? 1 : 0); l.visible = n > 0.02; }
   };
+  // seasons tint the lawn and the distant trees
+  const TINT = [[[1, 1, 1], [1, 1, 1]], [[0.93, 1.0, 0.84], [0.88, 1.0, 0.82]], [[1.22, 0.98, 0.6], [1.6, 0.86, 0.4]], [[0.86, 0.96, 0.92], [0.78, 0.9, 0.8]]];
+  const gT = new THREE.Color(1, 1, 1), tT = new THREE.Color(1, 1, 1), g0 = new THREE.Color(0xdde8cc), gg = new THREE.Color();
+  world.setSeason = (id, now) => { gT.setRGB(...TINT[id][0]); tT.setRGB(...TINT[id][1]); if (now) { world.grass.material.color.copy(gT); world.bgTreeMat.color.copy(tT); world.ground.material.color.copy(gg.copy(g0).multiply(gT)); } };
+  world.tickers.push((dt) => { const k = Math.min(1, dt * 0.6); world.grass.material.color.lerp(gT, k); world.bgTreeMat.color.lerp(tT, k); world.ground.material.color.lerp(gg.copy(g0).multiply(gT), k); });
   world.update = (dt, t) => { for (const f of world.tickers) f(dt, t); };
   world.blocked = (x, z) => {
     if (Math.abs(x) > 12.2 || z > 14.4 || z < -8.9) return true;
     if (Math.abs(x) < 4.95 && z < -4.95) return z < -6.55 || Math.abs(x) > 4.6 || (Math.abs(Math.abs(x) - 4.05) < 0.45 && z < -5.3);
     for (const b of BEDS) if (inRect(x, z, bedRect(b), 0.22)) return true;
     if (inPond(x, z, 0.35)) return true;
+    if (inRect(x, z, GREEN, 0.15)) return true;
     for (const p of POTS) if (!p.porch && (x - p.x) ** 2 + (z - p.zc) ** 2 < 0.5 ** 2) return true;
     for (const t of TREES) if ((x - t.x) ** 2 + (z - t.zc) ** 2 < 0.62 ** 2) return true;
     for (const a of ARCHES) for (const s of [-0.75, 0.75]) if ((x - a.x - s) ** 2 + (z - a.zc) ** 2 < 0.3 ** 2) return true;
@@ -452,6 +464,45 @@ function buildServices(scene, world) {
     thing('mail', x, z, 0.36, 1.6, [0, 0.8], 1.75); }
 }
 
+function buildScarecrow(sb, x, z) {
+  sb.cyl(0.03, 0.035, 1.5, x, 0.75, z, 0x8a6a4a, 6); sb.box(1.0, 0.05, 0.05, x, 1.12, z, 0x8a6a4a);
+  sb.box(0.36, 0.44, 0.16, x, 0.98, z, 0xc8584a); sb.box(0.3, 0.1, 0.12, x - 0.34, 1.12, z, 0xc8584a); sb.box(0.3, 0.1, 0.12, x + 0.34, 1.12, z, 0xc8584a);
+  for (const s of [-0.5, 0.5]) for (let k = 0; k < 4; k++) sb.box(0.012, 0.11, 0.012, x + s + (k - 1.5) * 0.02 * Math.sign(s), 1.07, z, 0xe8cf7a, RZ(s * (0.2 + k * 0.2)));
+  sb.sph(0.13, x, 1.36, z, 0xecd49a, 1, 1.05, 1, 10); sb.add(new THREE.ConeGeometry(0.2, 0.2, 10), T(x, 1.53, z), 0xb98a4e); sb.cyl(0.27, 0.27, 0.02, x, 1.44, z, 0xb98a4e, 12);
+  for (const s of [-0.045, 0.045]) sb.sph(0.016, x + s, 1.38, z + 0.12, 0x3a2a1e, 1, 1, 1, 6); sb.sph(0.02, x, 1.34, z + 0.128, 0xe8843a, 1, 1, 1, 6);
+  for (let k = 0; k < 7; k++) sb.box(0.014, 0.16, 0.014, x - 0.15 + k * 0.05, 0.72, z, 0xe8cf7a, RZ((k - 3) * 0.08));
+}
+
+function buildGreenhouse(grp, sb, world, addSpot, mound) {
+  const [x0, x1, z0, z1] = GREEN, cx = (x0 + x1) / 2, w = x1 - x0, d = z1 - z0, h = 1.9, rh = 0.8, WHT = 0xf6f2e8;
+  const glass = new THREE.MeshStandardMaterial({ color: 0xcfeaf2, roughness: 0.08, metalness: 0.1, transparent: true, opacity: 0.2, side: THREE.DoubleSide, depthWrite: false });
+  const panes = [];
+  const pane = (pw, ph, x, y, z, ry = 0, rx = 0) => { const g = new THREE.PlaneGeometry(pw, ph); g.applyMatrix4(mul(T(x, y, z), RY(ry), RX(rx))); panes.push(g); };
+  // floor + low brick base
+  sb.box(w + 0.1, 0.05, d + 0.1, cx, 0.025, (z0 + z1) / 2, 0xbfb4a2, null, 0.02);
+  for (const [bx, bz, bw, bd] of [[cx, z0, w, 0.1], [x0, (z0 + z1) / 2, 0.1, d], [x1, (z0 + z1) / 2, 0.1, d], [cx - w / 4 - 0.25, z1, w / 2 - 0.5, 0.1], [cx + w / 4 + 0.25, z1, w / 2 - 0.5, 0.1]]) sb.box(bw, 0.36, bd, bx, 0.18, bz, 0xb5745a, null, 0.04);
+  // frame
+  for (const x of [x0, x1]) for (const z of [z0, z1]) sb.box(0.07, h, 0.07, x, h / 2, z, WHT, null, 0);
+  for (let i = 1; i < 4; i++) { const x = x0 + (w * i) / 4; sb.box(0.045, h, 0.045, x, h / 2, z0, WHT, null, 0); if (Math.abs(x - cx) > 0.6) sb.box(0.045, h, 0.045, x, h / 2, z1, WHT, null, 0); }
+  for (const x of [cx - 0.5, cx + 0.5]) sb.box(0.055, h, 0.055, x, h / 2, z1, WHT, null, 0);
+  for (const z of [z0, z1]) sb.box(w, 0.06, 0.06, cx, h, z, WHT, null, 0);
+  for (const x of [x0, x1]) { sb.box(0.06, 0.06, d, x, h, (z0 + z1) / 2, WHT, null, 0); sb.box(0.045, h, 0.045, x, h / 2, (z0 + z1) / 2, WHT, null, 0); }
+  sb.box(w + 0.1, 0.06, 0.06, cx, h + rh, (z0 + z1) / 2, WHT, null, 0);
+  const sl = Math.hypot(rh, d / 2), ang = Math.atan2(rh, d / 2);
+  for (let i = 0; i <= 4; i++) for (const s of [-1, 1]) sb.box(0.045, 0.045, sl, x0 + (w * i) / 4, h + rh / 2, (z0 + z1) / 2 + s * d / 4, WHT, RX(s * ang), 0);
+  // glass
+  pane(w, h - 0.36, cx, 0.36 + (h - 0.36) / 2, z0); pane(d, h - 0.36, x0, 0.36 + (h - 0.36) / 2, (z0 + z1) / 2, Math.PI / 2); pane(d, h - 0.36, x1, 0.36 + (h - 0.36) / 2, (z0 + z1) / 2, Math.PI / 2);
+  pane(w / 2 - 0.5, h - 0.36, cx - w / 4 - 0.25, 0.36 + (h - 0.36) / 2, z1); pane(w / 2 - 0.5, h - 0.36, cx + w / 4 + 0.25, 0.36 + (h - 0.36) / 2, z1);
+  for (const s of [-1, 1]) pane(w, sl, cx, h + rh / 2, (z0 + z1) / 2 + s * d / 4, 0, s * ang - Math.PI / 2);
+  const gm = new THREE.Mesh(mergeGeometries(panes), glass); gm.renderOrder = 4; grp.add(gm);
+  // bench with six pots
+  sb.box(w - 0.5, 0.05, 0.5, cx, 0.72, z0 + 0.42, 0xb98a5e); for (const x of [x0 + 0.4, x1 - 0.4]) for (const z of [z0 + 0.24, z0 + 0.6]) sb.box(0.05, 0.7, 0.05, x, 0.35, z, 0x8a6648);
+  for (let i = 0; i < 6; i++) { const x = x0 + 0.45 + i * ((w - 0.9) / 5), y = 0.745, z = z0 + 0.42;
+    sb.lathe([[0.001, 0], [0.11, 0], [0.12, 0.03], [0.16, 0.24], [0.18, 0.25], [0.18, 0.28], [0.155, 0.28], [0.15, 0.26]], x, y, z, [0xc66f48, 0x7fa8a0, 0xd8b06a][i % 3], 14, undefined, 0.02);
+    const s = addSpot({ type: 'green', zone: 8, pos: new V3(x, y + 0.27, z), stand: new V3(cx + (i - 2.5) * 0.12, 0, z1 + 0.45), scale: 1.15, pickR: 0.2, pickH: 0.8, pickY: -0.25 });
+    s.soil = mound(grp, x, y + 0.255, z, 0.15, 0.2); }
+}
+
 function buildDecor(scene, world) {
   world.decorBlocks = [];
   const mk = (id, fn, block) => { const sb = new SB(400 + id.length), g = new THREE.Group(); fn(sb, g); if (sb.g.length) g.add(sb.mesh(propMat)); g.visible = false; scene.add(g); world.decor[id] = g; if (block) world.decorBlocks.push({ id, ...block }); };
@@ -529,12 +580,13 @@ function buildGrass(scene, world, q, unlocked) {
     if (onPath(x, z)) return false;
     for (const b of BEDR) if (inRect(x, z, b, 0.1)) return false;
     if (inPond(x, z, 0.28)) return false;
+    if (inRect(x, z, GREEN, 0.05)) return false;
     for (const p of POTS) if ((x - p.x) ** 2 + (z - p.zc) ** 2 < 0.1) return false;
     for (const t of TREES) if ((x - t.x) ** 2 + (z - t.zc) ** 2 < 0.45) return false;
     return true;
   };
   const N = 78000;
-  const zoneIdx = [[], [], [], [], [], [], []];
+  const zoneIdx = ZONES.map(() => []);
   const o = new THREE.Object3D(), c = new THREE.Color();
   const recs = [];
   for (let i = 0; i < N; i++) {

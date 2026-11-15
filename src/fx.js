@@ -66,7 +66,7 @@ export function createFx(scene) {
   const RN = 500, rpos = new Float32Array(RN * 6), rgeo = new THREE.BufferGeometry(); rgeo.setAttribute('position', new THREE.BufferAttribute(rpos, 3));
   const rain = new THREE.LineSegments(rgeo, new THREE.LineBasicMaterial({ color: 0xcfe4f4, transparent: true, opacity: 0 })); rain.frustumCulled = false; scene.add(rain);
   const drops = []; for (let i = 0; i < RN; i++) drops.push({ x: rnd(-16, 16), y: rnd(0, 14), z: rnd(-12, 18), v: rnd(11, 15) });
-  fx.rain = 0;
+  fx.rain = 0; fx.season = -1;
 
   let smokeT = 0;
   fx.update = (dt, time, env, camera, chimney) => {
@@ -86,6 +86,10 @@ export function createFx(scene) {
     const night = env.night;
     if (night > 0.3) for (const f of flies) { if (Math.random() < dt * 0.55) emit({ x: f.x + Math.sin(time * 0.3 + f.s) * 1.5, y: f.y + Math.sin(time * 0.5 + f.s * 2) * 0.3, z: f.z + Math.cos(time * 0.27 + f.s) * 1.5, vx: rnd(-0.1, 0.1), vy: rnd(-0.03, 0.08), vz: rnd(-0.1, 0.1), life: rnd(1.2, 2.4), size: 0.07, color: 0xe8ff7a, alpha: night, sway: 0.4 }); }
     geo.attributes.position.needsUpdate = true; geo.attributes.color.needsUpdate = true; geo.attributes.aSize.needsUpdate = true; geo.attributes.aAlpha.needsUpdate = true;
+    // seasons in the air: spring petals, autumn leaves, winter frost glints
+    if (fx.season === 0 && Math.random() < dt * 1.1) fx.petalFall({ x: rnd(-12, 12), y: rnd(2.5, 4.5), z: rnd(-8, 14) }, Math.random() < 0.6 ? 0xfcc8dc : 0xffffff, 0.5);
+    if (fx.season === 2 && Math.random() < dt * 3.2) { const cs = [0xe8843a, 0xd8a02a, 0xc8502a, 0xf2c84a]; emit({ x: rnd(-13, 13), y: rnd(3, 6), z: rnd(-9, 15), vx: rnd(0.1, 0.5), vy: -rnd(0.35, 0.6), vz: rnd(-0.15, 0.15), life: rnd(6, 10), size: rnd(0.07, 0.11), color: cs[Math.floor(Math.random() * 4)], sway: 2.4, floor: 0.03, alpha: 0.95 }); }
+    if (fx.season === 3 && env.night < 0.5 && Math.random() < dt * 1.5) emit({ x: rnd(-12, 12), y: rnd(0.05, 0.4), z: rnd(-8, 14), life: rnd(0.8, 1.6), size: 0.05, color: 0xeaf6ff, twinkle: 9, alpha: 0.8 });
     // chimney smoke
     smokeT -= dt; if (smokeT < 0 && chimney) { smokeT = 0.45; fx.smoke(chimney); }
     // butterflies

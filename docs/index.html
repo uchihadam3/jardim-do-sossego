@@ -75,6 +75,7 @@ body.playing #tags{opacity:1;visibility:visible}
 .meta{display:flex;justify-content:space-between;font-size:12.5px;font-weight:800;color:var(--ink-soft);font-variant-numeric:tabular-nums}
 .meta span{display:flex;align-items:center;gap:3px}
 .meta .price{color:var(--honey-d)}
+.seed .fav{position:absolute;left:6px;top:6px;font-style:normal;font-size:10px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;background:var(--honey);color:#4a3206;border-radius:999px;padding:2px 7px}
 .seed.poor .price{color:var(--rose)} .seed.poor{opacity:.72}
 .seed.locked img{filter:grayscale(1) brightness(1.25);opacity:.45}
 .seed.locked em{position:absolute;inset:auto 0 8px;text-align:center;font-style:normal;font-family:var(--display);font-weight:600;font-size:13px;color:var(--ink)}
@@ -143,6 +144,20 @@ body.playing #tags{opacity:1;visibility:visible}
 .diary span{display:inline-block;min-width:54px;font-family:var(--display);font-weight:600;color:var(--leaf-d);margin-right:6px}
 .alb em{font-style:normal;font-size:10px;font-weight:800;color:var(--honey-d);text-transform:uppercase;letter-spacing:.05em}
 .tabs{overflow-x:auto;scrollbar-width:none} .tabs button{white-space:nowrap;padding-inline:12px}
+.item.rare{justify-content:flex-start}
+.r-th{width:64px;height:64px;object-fit:contain;flex:none;border-radius:12px;background:radial-gradient(circle at 50% 70%,#f3f8e6,#dcebd0)}
+.r-th.q{filter:brightness(0) opacity(.16)}
+.item.rare>div:nth-child(2){flex:1}
+.item.rare small i{font-style:normal;color:var(--ink);font-weight:800}
+.r-par{display:flex;align-items:center;gap:2px;flex:none;font-weight:800;color:var(--ink-soft)}
+.r-par img{width:38px;height:38px;object-fit:contain}
+.rare-hero{width:150px;height:150px;margin:0 auto 6px;border-radius:50%;background:radial-gradient(circle,#fff7dc,#f3e3a8);display:grid;place-items:center;box-shadow:0 0 0 8px #fbf0c8;animation:glow 2s infinite}
+.rare-hero img{width:130px;height:130px;object-fit:contain}
+.sgroup{margin:10px 0}
+.sgroup>b{font-family:var(--display);font-weight:600;font-size:15px;display:block;margin-bottom:6px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chips .chip{font-family:var(--body);font-weight:800;font-size:12.5px}
+.p-h h2 .ic{width:26px;height:26px;vertical-align:-5px}
 /* modal */
 #modal{position:fixed;inset:0;background:rgba(34,52,40,.38);display:grid;place-items:center;padding:16px;opacity:0;pointer-events:none;transition:opacity .25s;backdrop-filter:blur(3px)}
 #modal.on{opacity:1;pointer-events:auto}
@@ -261,5 +276,5 @@ body.photo #photo-exit{display:inline-flex}
   <button class="btn big" id="start" hidden>Começar</button>
 </div>
 <div id="err" hidden></div>
-<script src="game.js?v=34f9e6604e"></script>
+<script src="game.js?v=3e65c75f38"></script>
 </body></html>

@@ -107,7 +107,8 @@ export function createGame({ scene, world, fx, audio, gardener, nav, env, ui, st
     else if (!on && v.weed) { scene.remove(v.weed); v.weed = null; } };
   const thingBubble = {};
   for (const k in world.things) { const t = world.things[k], b = makeSprite(k === 'orders' ? bubbleMat.order : bubbleMat.daily, 0.5); b.position.set(t.pos.x, t.top + 0.25, t.pos.z); thingBubble[k] = b; }
-  const hydrated = (p) => (SPECIES[p.sp].thirst === 0 ? true : p.wet > 0);
+  const thirstOf = (sp, spot) => (spot.type === 'green' ? 0 : sp.thirst ?? 1); // the greenhouse keeps everything moist
+  const outOfSeason = (sp, spot) => sp.season != null && spot.type !== 'green' && sp.season !== G.sys.season().id;
 
   // ---------- economy ----------
   const addCoins = (n, at) => { S.coins += n; if (at) ui.floatText(at, (n > 0 ? '+' : '') + n, 'coin'); ui.hud(); };
@@ -144,24 +145,26 @@ export function createGame({ scene, world, fx, audio, gardener, nav, env, ui, st
     if (p.ready || S.rare[spot.id]) { pushAct('collect', spot); ui.closeCards(); }
     else if (S.wilt[spot.id]) { pushAct('prune', spot); ui.closeCards(); }
     else if (S.weeds[spot.id]) { pushAct('weed', spot); ui.closeCards(); }
-    else if (sp.thirst !== 0 && p.wet < waterMax() * 0.4 && !has('sprinkler')) { pushAct('water', spot); ui.closeCards(); }
+    else if (thirstOf(sp, spot) !== 0 && p.wet < waterMax() * 0.4 && !has('sprinkler')) { pushAct('water', spot); ui.closeCards(); }
     else { audio.sfx('click', 0.35); G.showCard(spot); pushAct('admire', spot); }
   };
   G.showCard = (spot) => {
     const p = S.plants[spot.id]; if (!p) return;
     ui.plantCard(spot, () => { const q = S.plants[spot.id]; if (!q) return null; const sp = SPECIES[q.sp];
-      return { sp, stage: stageOf(q), grow: clamp(q.grown / sp.grow, 0, 1), water: sp.thirst === 0 ? 1 : clamp(q.wet / waterMax(), 0, 1), noWater: sp.thirst === 0, gift: q.grown >= sp.grow ? clamp(q.giftT / sp.every, 0, 1) : 0, ready: q.ready, left: Math.max(0, sp.grow - q.grown), adubo: S.adubo, inSeason: G.sys.inSeason(sp), weed: !!S.weeds[spot.id] }; },
+      return { sp, stage: stageOf(q), grow: clamp(q.grown / sp.grow, 0, 1), water: thirstOf(sp, spot) === 0 ? 1 : clamp(q.wet / waterMax(), 0, 1), noWater: thirstOf(sp, spot) === 0, green: spot.type === 'green', gift: q.grown >= sp.grow ? clamp(q.giftT / sp.every, 0, 1) : 0, ready: q.ready, left: Math.max(0, sp.grow - q.grown), adubo: S.adubo, inSeason: G.sys.inSeason(sp), weed: !!S.weeds[spot.id] }; },
     { water: () => pushAct('water', spot), remove: () => pushAct('remove', spot), fert: () => G.fertilize(spot) });
   };
-  const speciesFor = (spot) => SPECIES_LIST.filter((s) => s.spots.includes(spot.type) && (!s.hybrid || S.hybrids.includes(s.id))).map((s) => ({ sp: s, locked: s.lvl > level(), afford: S.coins >= s.price }));
+  const fits = (s, spot) => s.spots.includes(spot.type) || (spot.type === 'green' && s.spots.includes('pot'));
+  const speciesFor = (spot) => SPECIES_LIST.filter((s) => fits(s, spot) && (!s.hybrid || S.hybrids.includes(s.id))).map((s) => ({ sp: s, locked: s.lvl > level(), off: outOfSeason(s, spot), afford: S.coins >= s.price }));
   G.choose = (spot, id) => {
     const sp = SPECIES[id];
     if (sp.lvl > level()) { audio.sfx('error'); ui.toast(`${sp.name} chega no nível ${sp.lvl}`, 'warn'); return false; }
+    if (outOfSeason(sp, spot)) { audio.sfx('error'); ui.toast(`${sp.name} só nasce ${['na primavera', 'no verão', 'no outono', 'no inverno'][sp.season]} (ou na estufa)`, 'warn'); return false; }
     if (S.coins < sp.price) { audio.sfx('error'); ui.toast('Faltam moedas. Recolha os presentes das flores!', 'warn'); return false; }
     if (S.plants[spot.id] || spot.pending) return false;
     S.coins -= sp.price; spot.pending = id; ui.hud(); audio.sfx('buy', 0.7);
     pushAct('plant', spot, { sp: id });
-    if (sp.thirst !== 0 && !has('sprinkler')) pushAct('water', spot);
+    if (thirstOf(sp, spot) !== 0 && !has('sprinkler')) pushAct('water', spot);
     return true;
   };
   G.offerZone = (id) => {
@@ -190,7 +193,7 @@ export function createGame({ scene, world, fx, audio, gardener, nav, env, ui, st
   // effects of each action
   const doWater = (spot) => {
     const r = waterR(), m = waterMax(); let n = 0;
-    for (const id in S.plants) { const o = world.spots[id]; if (o.pos.distanceTo(spot.pos) <= r + 0.01 && (Math.abs(o.pos.y - spot.pos.y) < 1.2)) { const p = S.plants[id]; if (SPECIES[p.sp].thirst === 0) continue; p.wet = m; n++; fx.splash(o.pos, 5); } }
+    for (const id in S.plants) { const o = world.spots[id]; if (o.pos.distanceTo(spot.pos) <= r + 0.01 && (Math.abs(o.pos.y - spot.pos.y) < 1.2)) { const p = S.plants[id]; if (thirstOf(SPECIES[p.sp], o) === 0) continue; p.wet = m; n++; fx.splash(o.pos, 5); } }
     S.stats.watered += Math.max(1, n); addXp(1); checkQuest();
   };
   const doPlant = (t) => {
@@ -200,18 +203,18 @@ export function createGame({ scene, world, fx, audio, gardener, nav, env, ui, st
   };
   const doCollect = (spot) => {
     let total = 0;
+    for (const id in S.rare) { const o = world.spots[id]; if (!o || o.pos.distanceTo(spot.pos) > Math.max(1.4, waterR()) + 0.01) continue; G.sys.takeRare && G.sys.takeRare(id); }
     for (const id in S.plants) { const o = world.spots[id], p = S.plants[id]; if (!p.ready || o.pos.distanceTo(spot.pos) > Math.max(1.4, waterR()) + 0.01) continue;
       const sp = SPECIES[p.sp], amt = Math.round(sp.gift * G.sys.giftMul(sp)); p.ready = false; p.giftT = 0; total += amt; S.stats.collected++;
       S.basket[p.sp] = Math.min(99, (S.basket[p.sp] || 0) + 1);
       const at = o.pos.clone(); at.y += V[id].h * 0.7 + 0.2; fx.sparkle(at, 12); ui.floatText(at, '+' + amt, 'coin'); G.sys.afterGift && G.sys.afterGift(id); }
-    for (const id in S.rare) { const o = world.spots[id]; if (!o || o.pos.distanceTo(spot.pos) > Math.max(1.4, waterR()) + 0.01) continue; G.sys.takeRare && G.sys.takeRare(id); }
     if (total) { S.coins += total; audio.sfx('coin', 0.6); addXp(Math.ceil(total / 3)); ui.hud(); checkQuest(); save(); }
   };
   const doWeed = (spot) => { if (!S.weeds[spot.id]) return; delete S.weeds[spot.id]; S.stats.weeds = (S.stats.weeds || 0) + 1; fx.dust(V[spot.id].weed ? V[spot.id].weed.position : spot.pos, 10); audio.sfx('plant', 0.7, 1.25);
     const at = spot.pos.clone(); at.y += 0.4; S.coins += 3; ui.floatText(at, '+3', 'coin'); addXp(2); ui.hud(); };
   const doPrune = (spot) => { const p = S.plants[spot.id]; if (!p || !S.wilt[spot.id]) return; delete S.wilt[spot.id]; S.stats.prunes = (S.stats.prunes || 0) + 1;
     const sp = SPECIES[p.sp], amt = Math.round(sp.gift * 1.5 * G.sys.giftMul(sp)); p.giftT = 0; S.coins += amt; S.basket[p.sp] = Math.min(99, (S.basket[p.sp] || 0) + 2); S.stats.collected++;
-    const at = spot.pos.clone(); at.y += V[spot.id].h * 0.7 + 0.2; fx.sparkle(at, 18, 0xffd0e0); ui.floatText(at, '+' + amt, 'coin'); audio.sfx('coin', 0.6, 1.15); addXp(Math.ceil(amt / 3)); ui.hud(); save(); };
+    const at = spot.pos.clone(); at.y += V[spot.id].h * 0.7 + 0.2; fx.sparkle(at, 18, 0xffd0e0); ui.floatText(at, '+' + amt, 'coin'); audio.sfx('coin', 0.6, 1.15); addXp(Math.ceil(amt / 3)); ui.hud(); G.sys.afterGift(spot.id); save(); };
   G.fertilize = (spot) => { const p = S.plants[spot.id]; if (!p || S.adubo < 1) return; const sp = SPECIES[p.sp]; if (p.grown >= sp.grow) { ui.toast('Esta planta já está adulta', 'info'); return; }
     S.adubo--; S.stats.fert = (S.stats.fert || 0) + 1; p.grown = Math.min(sp.grow, p.grown + sp.grow * 0.25); const at = spot.pos.clone(); at.y += 0.3; fx.sparkle(at, 20, 0xb8f08a, 0.3); audio.sfx('bloom', 0.6, 1.2); addXp(2); save(); };
   G.tapThing = (kind) => { audio.sfx('click', 0.35); if (kind === 'orders') ui.orders(); else if (kind === 'mail') ui.daily(); };
@@ -281,7 +284,7 @@ export function createGame({ scene, world, fx, audio, gardener, nav, env, ui, st
     const targets = fx.butterflyTargets; targets.length = 0; let blooms = 0;
     for (const id in S.plants) {
       const p = S.plants[id], sp = SPECIES[p.sp], spot = world.spots[id], v = V[id];
-      const th = sp.thirst ?? 1;
+      const th = thirstOf(sp, spot);
       if (sprink) p.wet = wm;
       const hyd = th === 0 || p.wet > 0;
       if (th > 0) p.wet = Math.max(0, p.wet - dt * th);
@@ -328,8 +331,8 @@ export function createGame({ scene, world, fx, audio, gardener, nav, env, ui, st
     const away = clamp((Date.now() - (S.last || Date.now())) / 1000, 0, 48 * 3600);
     for (const id in S.plants) {
       const p = S.plants[id], sp = SPECIES[p.sp]; if (!sp || !world.spots[id]) { delete S.plants[id]; continue; }
-      const th = sp.thirst ?? 1, hydT = th === 0 || has('sprinkler') ? away : Math.min(away, p.wet / th);
-      const growT = Math.min(hydT, Math.max(0, sp.grow - p.grown)); p.grown += growT;
+      const th = thirstOf(sp, world.spots[id]), hydT = th === 0 || has('sprinkler') ? away : Math.min(away, p.wet / th), gm = G.sys.growMul(id, sp);
+      const growT = Math.min(hydT, Math.max(0, sp.grow - p.grown) / gm); p.grown = Math.min(sp.grow, p.grown + growT * gm);
       if (p.grown >= sp.grow) { if (!S.album.includes(p.sp)) S.album.push(p.sp); p.giftT += hydT - growT; if (p.giftT >= sp.every) { p.ready = true; p.giftT = sp.every; } }
       if (th > 0) p.wet = Math.max(0, p.wet - away * th);
       rebuild(world.spots[id]);

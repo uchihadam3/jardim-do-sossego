@@ -3,6 +3,7 @@ import { Builder } from './builder.js';
 import { T, RX, RY, RZ, S, mul, frame, col, mixc, shade, jitterc, bez, polyAt, lerp, clamp, TAU, mulberry } from './util.js';
 import { G, leaf, leavesAlong, basalLeaves, fanLeaf, mkStem, head, floretBall, sprout, habitStems, habitBush, habitSpike, habitCascade, habitTree, habitClimber } from './parts.js';
 import { makePlantMaterial } from './plantmat.js';
+import { moreSpecies, rareSpecies, LOVES } from './species2.js';
 
 const V3 = THREE.Vector3;
 const W = col(0xffffff);
@@ -451,6 +452,8 @@ add({ id: 'alecrim', name: 'Alecrim', lvl: 3, price: 14, grow: 65, gift: 9, spot
     cols: [col(0x7a8ae8), col(0xaab8f8)], bud: col(0x7a9a7a), leaf: { n: 26, L: 0.026, W: 0.004, c: col(0x4f7a58), fold: 0, tilt: 0.8, t0: 0.08, t1: 0.98, taper: 0.2 }, from2: 1 }, g, Math.max(o, 0)) });
 
 // ---------- public API ----------
+moreSpecies(add, H); rareSpecies(add, H);
+for (const d of defs) if (!d.loves && LOVES[d.id]) d.loves = LOVES[d.id];
 // Pacing: quick flowers take minutes, the grand ones take hours (they keep growing while the game is closed, as long as they have water)
 const PACE = [0, 9, 18, 28, 40, 55, 70, 85, 100, 115, 130, 150, 150, 150];
 for (const d of defs) { d.grow = Math.round(d.grow * PACE[Math.min(d.lvl, 13)] * (d.tree ? 2 : d.climber ? 1.5 : 1)); d.every = 300 + d.lvl * 90; }

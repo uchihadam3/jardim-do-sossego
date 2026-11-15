@@ -7,7 +7,7 @@ import { ACH, DAILY } from './systems.js';
 const $ = (s) => document.querySelector(s);
 const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html !== undefined) e.innerHTML = html; return e; };
 const ICON = (n) => `<svg class="ic" aria-hidden="true"><use href="#i-${n}"/></svg>`;
-const SPOT_NAMES = { bed: 'canteiro', pot: 'vaso', hang: 'vaso suspenso', window: 'jardineira', pond: 'lago', tree: 'árvore', arch: 'arco' };
+const SPOT_NAMES = { bed: 'canteiro', pot: 'vaso', hang: 'vaso suspenso', window: 'jardineira', pond: 'lago', tree: 'árvore', arch: 'arco', veg: 'horta', green: 'estufa' };
 const fmtTime = (s) => { if (s >= 3600) { const h = Math.floor(s / 3600), m = Math.round((s % 3600) / 60 / 5) * 5; return m >= 60 ? `${h + 1} h` : m ? `${h} h ${m}` : `${h} h`; } return s >= 60 ? `${Math.ceil(s / 60)} min` : `${Math.max(1, Math.ceil(s))} s`; };
 
 export function createUI({ project, thumbs, audio }) {
@@ -52,10 +52,11 @@ export function createUI({ project, thumbs, audio }) {
     const lvl = U.game.level();
     sheet.innerHTML = `<div class="sheet-h"><div><b>O que vamos plantar?</b><span>Plantas para ${SPOT_NAMES[spot.type]}</span></div><button class="x" aria-label="Fechar">${ICON('x')}</button></div><div class="seeds"></div>`;
     const row = sheet.querySelector('.seeds');
-    for (const { sp, locked } of list) {
-      const b = el('button', 'seed' + (locked ? ' locked' : ''));
+    const open = list.filter((x) => !x.locked && !x.off), shut = list.filter((x) => x.locked || x.off);
+    for (const { sp, locked, off } of [...open.reverse(), ...shut.filter((x) => x.off && !x.locked), ...shut.filter((x) => x.locked).slice(0, 6)]) {
+      const b = el('button', 'seed' + (locked || off ? ' locked' : ''));
       b.dataset.id = sp.id;
-      b.innerHTML = `<div class="th"><img alt="" src="${thumbs[sp.id] || ''}">${locked ? `<em>Nível ${sp.lvl}</em>` : ''}</div><b>${sp.name}</b><small>${sp.info}</small><div class="meta"><span class="price">${ICON('coin')}${sp.price}</span><span>${ICON('clock')}${fmtTime(sp.grow)}</span></div>`;
+      b.innerHTML = `<div class="th"><img alt="" src="${thumbs[sp.id] || ''}">${locked ? `<em>Nível ${sp.lvl}</em>` : off ? `<em>${['Primavera', 'Verão', 'Outono', 'Inverno'][sp.season]}</em>` : ''}${!locked && !off && U.game.sys.inSeason(sp) ? '<i class="fav">na estação</i>' : ''}</div><b>${sp.name}</b><small>${sp.info}</small><div class="meta"><span class="price">${ICON('coin')}${sp.price}</span><span>${ICON('clock')}${fmtTime(sp.grow)}</span></div>`;
       b.onclick = () => { if (U.game.choose(spot, sp.id)) U.closeCards(); };
       row.appendChild(b);
     }
@@ -72,7 +73,7 @@ export function createUI({ project, thumbs, audio }) {
       const st = i.stage === 4 ? (i.ready ? 'Presente pronto!' : 'Em flor') : STAGE_NAMES[i.stage];
       card.innerHTML = `<img class="c-th" alt="" src="${thumbs[i.sp.id] || ''}"><div class="c-b"><div class="c-n"><b>${i.sp.name}</b><span>${st}</span></div>
         <div class="c-row">${ICON('leaf')}<div class="bar g"><i style="width:${Math.round(i.grow * 100)}%"></i></div><small>${i.stage === 4 ? 'adulta' : 'faltam ' + fmtTime(i.left)}</small></div>
-        <div class="c-row">${ICON('drop')}<div class="bar w"><i style="width:${Math.round(i.water * 100)}%"></i></div><small>${i.noWater ? 'vive na água' : i.water <= 0 ? 'com sede!' : 'regada'}</small></div>
+        <div class="c-row">${ICON('drop')}<div class="bar w"><i style="width:${Math.round(i.water * 100)}%"></i></div><small>${i.green ? 'ar úmido da estufa' : i.noWater ? 'vive na água' : i.water <= 0 ? 'com sede!' : 'regada'}</small></div>
         ${i.stage === 4 ? `<div class="c-row">${ICON('coin')}<div class="bar c"><i style="width:${Math.round((i.ready ? 1 : i.gift) * 100)}%"></i></div><small>próximo presente</small></div>` : ''}
         ${i.inSeason ? `<div class="c-note">${ICON('flower')}Está na estação dela: cresce e rende mais.</div>` : ''}
         <div class="c-act">${i.noWater ? '' : `<button class="btn" data-a="water">${ICON('drop')}Regar</button>`}${i.stage < 4 && i.adubo > 0 ? `<button class="btn honey" data-a="fert">Adubar (${i.adubo})</button>` : ''}<button class="btn ghost" data-a="remove">Retirar</button><button class="btn ghost" data-a="close">Fechar</button></div></div>`;
@@ -129,6 +130,18 @@ export function createUI({ project, thumbs, audio }) {
     modal.querySelectorAll('[data-tab]').forEach((b) => (b.onclick = () => { click(); album(b.dataset.tab); }));
   };
   U.album = album;
+  U.rareTab = () => { const S = U.game.state, H = U.game.sys.hybrids; return { count: `${H.filter((h) => S.hybrids.includes(h.id)).length}/${H.length}`,
+    html: `<p class="hint">Quando duas flores diferentes florescem lado a lado, às vezes deixam uma semente especial. Recolha os presentes delas e fique de olho.</p><div class="list">${H.map((h) => { const got = S.hybrids.includes(h.id), [a, b] = h.hybrid.map((id) => SPECIES[id]);
+      return `<div class="item rare ${got ? 'own' : ''}"><img class="r-th ${got ? '' : 'q'}" alt="" src="${thumbs[h.id] || ''}"><div><b>${got ? h.name : '? ? ?'}</b><small>${got ? h.info : `Dizem que <i>${a.name}</i> e <i>${b.name}</i>, lado a lado, guardam um segredo.`}</small></div><div class="r-par"><img alt="" src="${thumbs[a.id] || ''}"><span>+</span><img alt="" src="${thumbs[b.id] || ''}"></div></div>`; }).join('')}</div>` }; };
+  U.rare = (h) => setTimeout(() => openModal(`<div class="rare-hero"><img alt="" src="${thumbs[h.id] || ''}"></div><h2>Raridade descoberta!</h2><p><b>${h.name}</b>. ${h.info}</p><p class="hint">Ela já está entre as suas sementes.</p><div class="row"><button class="btn big" data-close>Que maravilha!</button></div>`, 'small center'), 600);
+  U.seasonInfo = () => { const G = U.game, se = G.sys.season(), lvl = G.level();
+    const fav = SPECIES_LIST.filter((s) => s.loves && s.loves.includes(se.id) && s.lvl <= lvl && (!s.hybrid || G.state.hybrids.includes(s.id))), only = SPECIES_LIST.filter((s) => s.season === se.id);
+    const chip = (s) => `<span class="chip"><img alt="" src="${thumbs[s.id] || ''}">${s.name}</span>`;
+    openModal(`<div class="p-h"><h2>${ICON(se.icon)} ${se.name}</h2><span class="wallet">dia ${se.day} de ${se.of}</span><button class="x" data-close aria-label="Fechar">${ICON('x')}</button></div>
+      <p>${se.line} ${se.left === 1 ? 'Amanhã a estação muda.' : `Faltam ${se.left} dias para a próxima estação.`}</p>
+      ${only.length ? `<div class="sgroup"><b>Só nascem agora</b><div class="chips">${only.map(chip).join('')}</div></div>` : ''}
+      <div class="sgroup"><b>Crescem mais rápido e rendem mais agora</b><div class="chips">${fav.length ? fav.slice(0, 18).map(chip).join('') : '<small>Suba de nível para conhecer as flores desta estação.</small>'}</div></div>
+      <p class="hint">Nenhuma planta sofre fora da estação; ela só fica no ritmo normal.</p>`); };
 
   // ---------- flower stall: neighbours' orders ----------
   U.orders = () => {
