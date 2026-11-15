@@ -129,7 +129,8 @@ ok('button says welcome back', true);
 await p.screenshot({ path: SP + '/all_reloaded.png' });
 
 // 11. phone size
-const ph = await b.newContext({ viewport: { width: 400, height: 820 }, deviceScaleFactor: 1, hasTouch: true, isMobile: true }); const q = await ph.newPage();
+await p.close(); // the full garden would keep the software renderer busy while the phone page loads
+const ph = await b.newContext({ viewport: { width: 400, height: 820 }, deviceScaleFactor: 1, hasTouch: true, isMobile: true }); const q = await ph.newPage(); q.setDefaultTimeout(240000); q.setDefaultNavigationTimeout(240000);
 q.on('pageerror', (e) => errors.push('phone pageerror: ' + e.message));
 await q.goto(URL + '?q=baixa&nointro=1'); await q.waitForFunction(() => window.__ready, null, { timeout: 300000 }); await q.tap('#start'); await q.waitForTimeout(3000);
 await q.tap('#b-shop'); await q.waitForTimeout(900); const ov = await q.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1); ok('phone: shop opens, no sideways overflow', !ov); await q.screenshot({ path: SP + '/all_phone.png' });
