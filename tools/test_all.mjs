@@ -101,7 +101,7 @@ const placedInfo = await ev(() => { const g = window.__game, D = g.game.deco, re
   for (const id of all) { D.buy(id); if (!g.game.placing) { res.fail.push(id + ':buy'); continue; } let done = false; for (let z = -8; z <= 13.5 && !done; z += 0.5) for (let x = -11.5; x <= 11.5 && !done; x += 0.5) { D.move(x, z); if (g.game.placing.ok) { D.confirm(); done = true; } } if (!done) { D.cancel(); res.fail.push(id + ':noroom'); } else res.ok++; } return res; });
 ok('all 30 ornaments can be bought and placed', placedInfo.ok === 30, JSON.stringify(placedInfo));
 await wait(6000);
-await p.click('#b-shop'); await wait(800); await p.click('[data-deco="cogumelos"]'); await wait(1200);
+await p.click('#b-shop'); await wait(800); await p.click('#modal .fchip[data-cat]'); await wait(500); await p.click('[data-deco="cogumelos"]'); await wait(1200);
 ok('choosing an ornament in the shop starts placing', await ev(() => !!window.__game.game.placing) && await ev(() => document.querySelector('#placebar').classList.contains('on')));
 await p.click('#pb-rot'); await p.click('#pb-no'); await wait(500); ok('placing can be cancelled', await ev(() => !window.__game.game.placing));
 const it0 = await ev(() => { const it = window.__game.world.items[0]; return [it.rec.x, 0.3, it.rec.z]; }); await lookAt(it0[0], it0[2], 6, 0.9); await wait(2500); await clickWorld(...it0); await wait(1200);
