@@ -67,6 +67,15 @@ export function createFx(scene) {
   const rain = new THREE.LineSegments(rgeo, new THREE.LineBasicMaterial({ color: 0xcfe4f4, transparent: true, opacity: 0 })); rain.frustumCulled = false; scene.add(rain);
   const drops = []; for (let i = 0; i < RN; i++) drops.push({ x: rnd(-16, 16), y: rnd(0, 14), z: rnd(-12, 18), v: rnd(11, 15) });
   fx.rain = 0; fx.season = -1;
+  // a rainbow for a while after the rain, if it is still day
+  const rb = (() => { const pos = [], colr = [], idx = [], N = 72, cs = [0xe8584a, 0xf2903a, 0xf7d84a, 0x7ac86a, 0x5aa8e8, 0x6a6ad8, 0xa87ae0].map((c) => new THREE.Color(c)), R0 = 46, W = 0.75;
+    for (let b = 0; b <= cs.length; b++) for (let i = 0; i <= N; i++) { const a = (i / N) * Math.PI, r = R0 - b * W; pos.push(Math.cos(a) * r, Math.sin(a) * r, 0); const c = cs[Math.min(b, cs.length - 1)]; colr.push(c.r, c.g, c.b); }
+    for (let b = 0; b < cs.length; b++) for (let i = 0; i < N; i++) { const p0 = b * (N + 1) + i, p1 = p0 + N + 1; idx.push(p0, p1, p0 + 1, p0 + 1, p1, p1 + 1); }
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(colr, 3)); g.setIndex(idx);
+    const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide, fog: false })); m.position.set(-6, -9, -70); m.rotation.y = 0.12; m.visible = false; m.renderOrder = -1; scene.add(m); return m; })();
+  fx.rainbowT = 0; let wasRain = 0;
+  // the sparkles follow Eliane indoors; weather, butterflies and fireflies stay in the garden
+  fx.setScene = (sc, indoor) => { sc.add(points); fx.indoor = !!indoor; };
 
   let smokeT = 0;
   fx.update = (dt, time, env, camera, chimney) => {
@@ -84,14 +93,14 @@ export function createFx(scene) {
     }
     // fireflies ride on top of the pool's last slots at night
     const night = env.night;
-    if (night > 0.3) for (const f of flies) { if (Math.random() < dt * 0.55) emit({ x: f.x + Math.sin(time * 0.3 + f.s) * 1.5, y: f.y + Math.sin(time * 0.5 + f.s * 2) * 0.3, z: f.z + Math.cos(time * 0.27 + f.s) * 1.5, vx: rnd(-0.1, 0.1), vy: rnd(-0.03, 0.08), vz: rnd(-0.1, 0.1), life: rnd(1.2, 2.4), size: 0.07, color: 0xe8ff7a, alpha: night, sway: 0.4 }); }
+    if (night > 0.3 && !fx.indoor) for (const f of flies) { if (Math.random() < dt * 0.55) emit({ x: f.x + Math.sin(time * 0.3 + f.s) * 1.5, y: f.y + Math.sin(time * 0.5 + f.s * 2) * 0.3, z: f.z + Math.cos(time * 0.27 + f.s) * 1.5, vx: rnd(-0.1, 0.1), vy: rnd(-0.03, 0.08), vz: rnd(-0.1, 0.1), life: rnd(1.2, 2.4), size: 0.07, color: 0xe8ff7a, alpha: night, sway: 0.4 }); }
     geo.attributes.position.needsUpdate = true; geo.attributes.color.needsUpdate = true; geo.attributes.aSize.needsUpdate = true; geo.attributes.aAlpha.needsUpdate = true;
     // seasons in the air: spring petals, autumn leaves, winter frost glints
-    if (fx.season === 0 && Math.random() < dt * 1.1) fx.petalFall({ x: rnd(-12, 12), y: rnd(2.5, 4.5), z: rnd(-8, 14) }, Math.random() < 0.6 ? 0xfcc8dc : 0xffffff, 0.5);
-    if (fx.season === 2 && Math.random() < dt * 3.2) { const cs = [0xe8843a, 0xd8a02a, 0xc8502a, 0xf2c84a]; emit({ x: rnd(-13, 13), y: rnd(3, 6), z: rnd(-9, 15), vx: rnd(0.1, 0.5), vy: -rnd(0.35, 0.6), vz: rnd(-0.15, 0.15), life: rnd(6, 10), size: rnd(0.07, 0.11), color: cs[Math.floor(Math.random() * 4)], sway: 2.4, floor: 0.03, alpha: 0.95 }); }
-    if (fx.season === 3 && env.night < 0.5 && Math.random() < dt * 1.5) emit({ x: rnd(-12, 12), y: rnd(0.05, 0.4), z: rnd(-8, 14), life: rnd(0.8, 1.6), size: 0.05, color: 0xeaf6ff, twinkle: 9, alpha: 0.8 });
+    if (!fx.indoor && fx.season === 0 && Math.random() < dt * 1.1) fx.petalFall({ x: rnd(-12, 12), y: rnd(2.5, 4.5), z: rnd(-8, 14) }, Math.random() < 0.6 ? 0xfcc8dc : 0xffffff, 0.5);
+    if (!fx.indoor && fx.season === 2 && Math.random() < dt * 3.2) { const cs = [0xe8843a, 0xd8a02a, 0xc8502a, 0xf2c84a]; emit({ x: rnd(-13, 13), y: rnd(3, 6), z: rnd(-9, 15), vx: rnd(0.1, 0.5), vy: -rnd(0.35, 0.6), vz: rnd(-0.15, 0.15), life: rnd(6, 10), size: rnd(0.07, 0.11), color: cs[Math.floor(Math.random() * 4)], sway: 2.4, floor: 0.03, alpha: 0.95 }); }
+    if (!fx.indoor && fx.season === 3 && env.night < 0.5 && Math.random() < dt * 1.5) emit({ x: rnd(-12, 12), y: rnd(0.05, 0.4), z: rnd(-8, 14), life: rnd(0.8, 1.6), size: 0.05, color: 0xeaf6ff, twinkle: 9, alpha: 0.8 });
     // chimney smoke
-    smokeT -= dt; if (smokeT < 0 && chimney) { smokeT = 0.45; fx.smoke(chimney); }
+    smokeT -= dt; if (smokeT < 0 && chimney && !fx.indoor) { smokeT = 0.45; fx.smoke(chimney); }
     // butterflies
     const want = night > 0.5 || fx.rain > 0.3 ? 0 : fx.butterflyCount;
     bfs.forEach((b, i) => {
@@ -111,7 +120,9 @@ export function createFx(scene) {
       const flap = b.rest > 0 ? 0.25 + Math.sin(b.t * 2.5) * 0.25 : Math.sin(b.t * 26) * 0.9 + 0.1;
       b.wr.rotation.z = flap; b.wl.rotation.z = -flap;
     });
-    // rain
+    // rain, and the rainbow that follows it
+    if (wasRain > 0.5 && fx.rain <= 0.5 && env.night < 0.3) fx.rainbowT = 70; wasRain = fx.rain; if (fx.rainbowT > 0) fx.rainbowT -= dt;
+    rb.material.opacity = Math.max(0, Math.min(1, fx.rainbowT / 8, (70 - fx.rainbowT) / 6)) * 0.42 * (1 - env.night); rb.visible = rb.material.opacity > 0.005;
     rain.material.opacity = fx.rain * 0.4; rain.visible = fx.rain > 0.01;
     if (rain.visible) { for (let i = 0; i < RN; i++) { const d = drops[i]; d.y -= d.v * dt; if (d.y < 0) { d.y = 14; d.x = camera.position.x * 0.3 + rnd(-16, 16); d.z = rnd(-12, 18); }
         rpos[i * 6] = d.x; rpos[i * 6 + 1] = d.y; rpos[i * 6 + 2] = d.z; rpos[i * 6 + 3] = d.x + 0.03; rpos[i * 6 + 4] = d.y + 0.38; rpos[i * 6 + 5] = d.z; }

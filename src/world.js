@@ -48,7 +48,21 @@ export const ZONES = [
   { id: 6, name: 'Prado das flores', cost: 9000, rect: [-12.3, -5, 5, 14.3], tag: [-8.7, 9.6], desc: 'Canteiros grandes para um mar de flores.' },
   { id: 7, name: 'Horta', cost: 350, rect: [-9.45, -5.2, -8.75, -5.2], tag: [-7.3, -6.9], desc: 'Oito canteirinhos para hortaliças, temperos e morangos.' },
   { id: 8, name: 'Estufa', cost: 3200, rect: [5.45, 9.25, -8.75, -5.5], tag: [7.35, -5.9], desc: 'Seis vasos onde tudo cresce em dobro, sem regar e em qualquer estação. Só aqui nascem as plantas mais raras.' },
+  // the big land beyond the old fence. NEW ZONES ALWAYS GO AT THE END: the places for plants are numbered in order and saved gardens use those numbers.
+  { id: 9, name: 'Horta grande', cost: 6000, rect: [13.0, 26.7, -0.9, 3.3], tag: [13.9, 2.9], desc: 'Quatro canteiros compridos: 28 lugares novos para hortaliças, ervas e frutinhas.' },
+  { id: 10, name: 'Horta do meio', cost: 14000, rect: [13.0, 26.7, -4.8, -0.9], tag: [13.9, -1.3], desc: 'Mais 28 lugares de horta. Dá para ter de tudo ao mesmo tempo.' },
+  { id: 11, name: 'Horta do fundo', cost: 26000, rect: [13.0, 26.7, -8.7, -4.8], tag: [13.9, -5.2], desc: 'A horta fica enorme: outros 28 lugares.' },
+  { id: 12, name: 'Estufa grande', cost: 12000, rect: [13.0, 17.9, 5.1, 14.4], tag: [15.45, 5.35], desc: 'Uma estufa de verdade, de entrar e andar lá dentro: 14 vasos onde tudo cresce em dobro, sem regar e em qualquer estação.' },
+  { id: 13, name: 'Estufa grande: ala do meio', cost: 30000, rect: [17.9, 22.3, 5.1, 14.4], tag: [20.1, 5.35], desc: 'A estufa ganha mais uma ala com 14 vasos.' },
+  { id: 14, name: 'Estufa grande: ala das orquídeas', cost: 60000, rect: [22.3, 26.7, 5.1, 14.4], tag: [24.5, 5.35], desc: 'A terceira ala. Com ela a estufa fica gigante: 42 vasos.' },
+  { id: 15, name: 'Bosque', cost: 9000, rect: [-26.7, -13.0, -2.8, 3.3], tag: [-13.9, 2.9], desc: 'Lugar para oito árvores: frutíferas, ipês, o que você quiser.' },
+  { id: 16, name: 'Bosque do fundo', cost: 22000, rect: [-26.7, -13.0, -8.7, -2.8], tag: [-13.9, -3.2], desc: 'Mais oito árvores. Vira um bosque de verdade.' },
+  { id: 17, name: 'Campo de flores', cost: 18000, rect: [-19.8, -13.0, 5.1, 14.4], tag: [-16.4, 5.35], desc: 'Três canteiros enormes: 36 lugares para um mar de flores.' },
+  { id: 18, name: 'Campo de flores do oeste', cost: 40000, rect: [-26.7, -19.8, 5.1, 14.4], tag: [-23.2, 5.35], desc: 'Outros 36 lugares de canteiro, até onde a vista alcança.' },
 ];
+// the three wings of the big greenhouse (zone, x0, x1, z0, z1)
+const BIGGREEN = [[12, 13.35, 17.55, 5.95, 13.95], [13, 18.0, 22.2, 5.95, 13.95], [14, 22.65, 26.45, 5.95, 13.95]];
+export const LAND = 26.8; // half-width of the property
 const POND = { x: -8.6, z: -0.6, rx: 2.5, rz: 1.9 };
 const BEDS = [
   { z: 0, x: -2.9, zc: -1.3, cols: 3, rows: 2 }, { z: 0, x: 2.9, zc: -1.3, cols: 3, rows: 2 },
@@ -58,6 +72,8 @@ const BEDS = [
   { z: 5, x: 10.4, zc: 6.6, cols: 3, rows: 1 }, { z: 5, x: 10.2, zc: 13.0, cols: 3, rows: 1 },
   { z: 7, x: -7.3, zc: -5.95, cols: 4, rows: 1, veg: true }, { z: 7, x: -7.3, zc: -7.85, cols: 4, rows: 1, veg: true },
   { z: 6, x: -8.7, zc: 7.2, cols: 4, rows: 2 }, { z: 6, x: -8.7, zc: 10.5, cols: 4, rows: 2 }, { z: 6, x: -8.7, zc: 13.3, cols: 4, rows: 1 },
+  ...[[9, 0.25, 2.15], [10, -3.8, -1.9], [11, -7.7, -5.8]].flatMap(([z, a, b]) => [a, b].flatMap((zc) => [16.5, 23.1].map((x) => ({ z, x, zc, cols: 7, rows: 1, veg: true })))),
+  ...[[17, -16.4], [18, -23.2]].flatMap(([z, x]) => [6.9, 9.9, 12.9].map((zc) => ({ z, x, zc, cols: 6, rows: 2 }))),
 ];
 const SLOT = 0.82;
 const POTS = [
@@ -66,7 +82,8 @@ const POTS = [
   { z: 2, x: 6.1, zc: 2.5 }, { z: 2, x: 11.4, zc: 2.5 }, { z: 3, x: -6.0, zc: 2.5 }, { z: 3, x: -11.4, zc: 2.5 },
   { z: 4, x: -1.25, zc: 5.6 }, { z: 4, x: 1.25, zc: 5.6 }, { z: 5, x: 6.0, zc: 5.9 }, { z: 6, x: -5.9, zc: 5.9 }, { z: 6, x: -5.9, zc: 13.6 },
 ];
-const TREES = [{ z: 2, x: 10.4, zc: -6.6 }, { z: 3, x: -10.6, zc: -6.9 }, { z: 5, x: 7.3, zc: 7.9 }, { z: 5, x: 10.6, zc: 9.9 }, { z: 5, x: 7.2, zc: 12.3 }, { z: 6, x: -11.4, zc: 5.9 + 0 }];
+const TREES = [{ z: 2, x: 10.4, zc: -6.6 }, { z: 3, x: -10.6, zc: -6.9 }, { z: 5, x: 7.3, zc: 7.9 }, { z: 5, x: 10.6, zc: 9.9 }, { z: 5, x: 7.2, zc: 12.3 }, { z: 6, x: -11.4, zc: 5.9 + 0 },
+  ...[[15, 1.6, -1.3], [16, -4.4, -7.3]].flatMap(([z, a, b]) => [a, b].flatMap((zc, r) => [-24.9, -21.5, -18.1, -14.7].map((x) => ({ z, x: x + (r ? 0.5 : -0.3), zc }))))];
 const ARCHES = [{ z: 4, x: 0, zc: 7.4 }, { z: 4, x: 0, zc: 11.4 }];
 const HANGS = [-3.4, -1.55, 1.55, 3.4];
 const WINDOWS = [-2.75, 2.75];
@@ -109,10 +126,11 @@ const bedRect = (b) => { const w = b.cols * SLOT + 0.3, d = b.rows * SLOT + 0.3;
 const GREEN = [5.7, 9.0, -8.35, -5.85];
 const inPond = (x, z, pad = 0) => ((x - POND.x) / (POND.rx + pad)) ** 2 + ((z - POND.z) / (POND.rz + pad)) ** 2 < 1;
 export const zoneAt = (x, z) => { for (let i = ZONES.length - 1; i >= 0; i--) if (i !== 1 && inRect(x, z, ZONES[i].rect)) return i; return -1; };
-const onPath = (x, z) => (Math.abs(x) < 0.75 && z > -4.6 && z < 15.5) || (z > 3.6 && z < 4.9 && Math.abs(x) < 12.3);
+const onPath = (x, z) => (Math.abs(x) < 0.75 && z > -4.6 && z < 15.5) || (z > 3.6 && z < 4.9 && Math.abs(x) < LAND) || (Math.abs(Math.abs(x) - 12.65) < 0.36 && z > -8.9 && z < 14.5);
+const inBigGreen = (x, z, pad = 0) => BIGGREEN.some(([, x0, x1, z0, z1]) => x > x0 - pad && x < x1 + pad && z > z0 - pad && z < z1 + pad);
 export const groundY = (x, z) => (z < -4.95 && Math.abs(x) < 4.9 ? PORCH_Y : z < -4.6 && Math.abs(x) < 1.4 ? lerp(0, PORCH_Y, clamp((-4.6 - z) / 0.35, 0, 1)) : 0);
 
-export function createWorld(scene, q, unlocked) {
+export function createWorld(scene, q, unlocked, hooks = {}) {
   const world = { pond: POND, spots: [], zones: ZONES, decor: {}, zoneGroups: [], lockGroups: [], nightMats: [], lamps: [], tickers: [] };
   const rng = mulberry(77);
 
@@ -142,10 +160,11 @@ export function createWorld(scene, q, unlocked) {
       { H: 1.3, R: 2.3, trunkR: 0.16, limbs: 7, leaves: 600, leafSize: 0.45, leafCols: [col(0x5a9440), col(0x6aa648), col(0x4a8438)] },
     ].map((P, i) => { const bb = new Builder(); habitTree(bb, mulberry(20 + i), P, 1, -1); return bb.build(); });
     const spots = [];
-    for (let i = 0; i < 46; i++) {
+    for (let i = 0; i < 64; i++) {
       const side = i % 4; let x, z;
-      if (side === 0) { x = hr.range(-24, 24); z = hr.range(-28, -16); } else if (side === 1) { x = hr.range(15.5, 30) * (hr() < 0.5 ? -1 : 1); z = hr.range(-22, 22); }
-      else if (side === 2) { x = hr.range(-30, 30); z = hr.range(19.5, 34); if (Math.abs(x) < 4) x += 8; } else { const a = hr() * TAU, r = hr.range(34, 58); x = Math.cos(a) * r; z = Math.sin(a) * r; }
+      if (side === 0) { x = hr.range(-34, 34); z = hr.range(-28, -16); } else if (side === 1) { x = hr.range(15.5, 30) * (hr() < 0.5 ? -1 : 1); z = hr.range(-22, 22); }
+      else if (side === 2) { x = hr.range(-38, 38); z = hr.range(19.5, 34); if (Math.abs(x) < 4) x += 8; } else { const a = hr() * TAU, r = hr.range(34, 58); x = Math.cos(a) * r; z = Math.sin(a) * r; }
+      if (Math.abs(x) < LAND + 2.5 && z > -11.5 && z < 17) { if (side === 1) x = Math.sign(x) * hr.range(LAND + 3, LAND + 16); else z = z < 3 ? hr.range(-28, -13) : hr.range(18.5, 32); }
       spots.push([x, z]);
     }
     variants.forEach((geo, vi) => {
@@ -159,10 +178,11 @@ export function createWorld(scene, q, unlocked) {
   {
     const sb = new SB(11), pr = mulberry(12);
     const strip = (x0, x1, z0, z1) => { const g = new THREE.PlaneGeometry(x1 - x0, z1 - z0, 1, 1); g.rotateX(-Math.PI / 2); sb.add(g, T((x0 + x1) / 2, 0.012, (z0 + z1) / 2), 0xd8c8a2, 0); };
-    strip(-0.8, 0.8, -4.6, 16.2); strip(-12.3, 12.3, 3.55, 4.95);
+    strip(-0.8, 0.8, -4.6, 16.2); strip(-LAND, LAND, 3.55, 4.95); for (const s of [-1, 1]) { strip(s * 12.65 - 0.38, s * 12.65 + 0.38, -8.9, 3.55); strip(s * 12.65 - 0.38, s * 12.65 + 0.38, 4.95, 14.5); }
     const stone = (x, z, s) => sb.add(new THREE.CylinderGeometry(s, s * 1.06, 0.05, 7), mul(T(x, 0.03, z), RY(pr() * 6), S(1, 1, pr.range(0.7, 0.95))), pr.pick([0xc9c1b4, 0xbdb5a6, 0xd6cec0, 0xb8b0a4]), 0.04);
     for (let z = -4.2; z < 16; z += 0.86) stone(pr.range(-0.12, 0.12), z, pr.range(0.3, 0.38));
     for (let x = -11.8; x < 12; x += 0.86) if (Math.abs(x) > 0.7) stone(x, 4.25 + pr.range(-0.1, 0.1), pr.range(0.3, 0.38));
+    for (const s of [-1, 1]) { for (let x = 12.6; x < LAND - 0.3; x += 0.86) stone(s * x, 4.25 + pr.range(-0.1, 0.1), pr.range(0.3, 0.38)); for (let z = -8.5; z < 14.2; z += 0.9) if (z < 3.4 || z > 5.1) stone(s * 12.65 + pr.range(-0.06, 0.06), z, pr.range(0.24, 0.3)); }
     for (let i = 0; i < 150; i++) { const v = pr() < 0.55, a = v ? pr.range(-0.78, 0.78) : pr.range(-12.2, 12.2), bq = v ? pr.range(-4.5, 16) : pr.range(3.6, 4.9); sb.sph(pr.range(0.02, 0.05), a, 0.02, bq, pr.pick([0xb8ae9c, 0xe4dccb, 0xa89e8c]), 1, 0.5, 1, 5); }
     scene.add(sb.mesh(propMat, false));
   }
@@ -182,7 +202,7 @@ export function createWorld(scene, q, unlocked) {
       }
       sb.box(0.035, 0.07, L, (x0 + x1) / 2, 0.3, (z0 + z1) / 2, W, R); sb.box(0.035, 0.07, L, (x0 + x1) / 2, 0.64, (z0 + z1) / 2, W, R);
     };
-    run(-12.6, -9.2, -12.6, 14.7); run(12.6, -9.2, 12.6, 14.7); run(-12.6, 14.7, -1.2, 14.7); run(1.2, 14.7, 12.6, 14.7); run(-12.6, -9.2, -4.6, -9.2); run(4.6, -9.2, 12.6, -9.2);
+    const FX = LAND + 0.4; run(-FX, -9.2, -FX, 14.7); run(FX, -9.2, FX, 14.7); run(-FX, 14.7, -1.2, 14.7); run(1.2, 14.7, FX, 14.7); run(-FX, -9.2, -4.6, -9.2); run(4.6, -9.2, FX, -9.2);
     // gate arch
     for (const s of [-1, 1]) { sb.box(0.14, 2.2, 0.14, s * 1.2, 1.1, 14.7, W); }
     sb.box(2.7, 0.12, 0.16, 0, 2.2, 14.7, W); sb.box(2.9, 0.06, 0.3, 0, 2.29, 14.7, W);
@@ -261,6 +281,8 @@ export function createWorld(scene, q, unlocked) {
     if (zn.id === 3) buildPond(grp, sb, world, addSpot, zr);
     if (zn.id === 7) buildScarecrow(sb, -9.55, -6.9);
     if (zn.id === 8) buildGreenhouse(grp, sb, world, addSpot, mound);
+    { const bg = BIGGREEN.find((g) => g[0] === zn.id); if (bg) buildBigGreenhouse(grp, sb, bg, addSpot, mound); }
+    if (zn.id === 8 && hooks.afterFirstLand) hooks.afterFirstLand(world); // (nothing yet) kept so the numbering of places stays in one visible spot
     if (sb.g.length) grp.add(sb.mesh(propMat));
     // locked overlay: wooden sign
     if (zn.cost > 0) {
@@ -275,6 +297,9 @@ export function createWorld(scene, q, unlocked) {
     }
   }
 
+  // indoor places come right after today's garden places; whatever is added to the garden in the future is created after this line
+  if (hooks.indoor) hooks.indoor(world);
+
   // ----- decorations (bought in the shop) -----
   buildDecor(scene, world);
 
@@ -288,13 +313,14 @@ export function createWorld(scene, q, unlocked) {
   const pickMat = new THREE.MeshBasicMaterial({ visible: false });
   world.pickables = [];
   for (const s of world.spots) {
+    if (s.indoor) continue;
     const m = new THREE.Mesh(new THREE.CylinderGeometry(s.pickR, s.pickR, s.pickH, 8), pickMat);
     m.position.copy(s.pos); m.position.y += s.pickH / 2 + (s.pickY ?? 0); m.userData.spot = s; scene.add(m); world.pickables.push(m); s.pick = m;
   }
 
   world.setZone = (id, on) => {
     world.zoneGroups[id].visible = on; if (world.lockGroups[id]) world.lockGroups[id].visible = !on;
-    for (const s of world.spots) if (s.zone === id) s.pick.visible = on;
+    for (const s of world.spots) if (s.zone === id && !s.indoor) s.pick.visible = on;
   };
   world.setDecor = (id, on) => { if (world.decor[id]) world.decor[id].visible = on; };
   world.setNight = (n) => {
@@ -310,21 +336,22 @@ export function createWorld(scene, q, unlocked) {
   // ornaments placed by the player
   world.items = [];
   world.canPlace = (x, z, r, ignore, zones) => {
-    if (Math.abs(x) > 12.25 - r || z > 14.45 - r || z < -8.95 + r) return false;
+    if (Math.abs(x) > LAND + 0.05 - r || z > 14.45 - r || z < -8.95 + r) return false;
     if (Math.abs(x) < 5.0 + r && z < -4.7 + r) return false;
     const zn = zoneAt(x, z); if (zn >= 0 && !zones.includes(zn)) return false;
     for (let i = 0; i < 9; i++) { const a = (i / 8) * TAU, rr = i === 8 ? 0 : r * 0.9, px = x + Math.cos(a) * rr, pz = z + Math.sin(a) * rr; if (onPath(px, pz) || staticBlocked(px, pz)) return false; }
-    for (const s of world.spots) if (s.type !== 'hang' && s.type !== 'window' && Math.hypot(s.pos.x - x, s.pos.z - z) < r + 0.45) return false;
+    for (const s of world.spots) if (!s.indoor && s.type !== 'hang' && s.type !== 'window' && Math.hypot(s.pos.x - x, s.pos.z - z) < r + 0.45) return false;
     for (const it of world.items) if (it !== ignore && Math.hypot(it.rec.x - x, it.rec.z - z) < r + it.def.r) return false;
     return true;
   };
   world.blocked = (x, z) => { if (staticBlocked(x, z)) return true; for (const it of world.items) if ((x - it.rec.x) ** 2 + (z - it.rec.z) ** 2 < (it.def.r * 0.85) ** 2) return true; return false; };
   const staticBlocked = (x, z) => {
-    if (Math.abs(x) > 12.2 || z > 14.4 || z < -8.9) return true;
+    if (Math.abs(x) > LAND || z > 14.4 || z < -8.9) return true;
     if (Math.abs(x) < 4.95 && z < -4.95) return z < -6.55 || Math.abs(x) > 4.6 || (Math.abs(Math.abs(x) - 4.05) < 0.45 && z < -5.3);
     for (const b of BEDS) if (inRect(x, z, bedRect(b), 0.22)) return true;
     if (inPond(x, z, 0.35)) return true;
     if (inRect(x, z, GREEN, 0.15)) return true;
+    for (const [, x0, x1, z0, z1] of BIGGREEN) if (x > x0 - 0.2 && x < x1 + 0.2 && z > z0 - 0.2 && z < z1 + 0.2) { const cx = (x0 + x1) / 2; if (z < z0 + 0.25) { if (Math.abs(x - cx) > 0.42) return true; } else if (x < x0 + 0.95 || x > x1 - 0.95 || z > z1 - 0.3) return true; }
     for (const p of POTS) if (!p.porch && (x - p.x) ** 2 + (z - p.zc) ** 2 < 0.5 ** 2) return true;
     for (const t of TREES) if ((x - t.x) ** 2 + (z - t.zc) ** 2 < 0.62 ** 2) return true;
     for (const a of ARCHES) for (const s of [-0.75, 0.75]) if ((x - a.x - s) ** 2 + (z - a.zc) ** 2 < 0.3 ** 2) return true;
@@ -523,6 +550,31 @@ function buildGreenhouse(grp, sb, world, addSpot, mound) {
     s.soil = mound(grp, x, y + 0.255, z, 0.15, 0.2); }
 }
 
+// one wing of the big greenhouse: a glass house she walks into, with a bench of pots along each side
+function buildBigGreenhouse(grp, sb, [zone, x0, x1, z0, z1], addSpot, mound) {
+  const cx = (x0 + x1) / 2, cz = (z0 + z1) / 2, w = x1 - x0, d = z1 - z0, h = 2.3, rh = 1.0, WHT = 0xf6f2e8, BR = 0xb5745a;
+  const glass = new THREE.MeshStandardMaterial({ color: 0xcfeaf2, roughness: 0.08, metalness: 0.1, transparent: true, opacity: 0.18, side: THREE.DoubleSide, depthWrite: false }), panes = [];
+  const pane = (pw, ph, x, y, z, ry = 0, rz = 0) => { const g = new THREE.PlaneGeometry(pw, ph); g.applyMatrix4(mul(T(x, y, z), RY(ry), RZ(rz))); panes.push(g); };
+  sb.box(w + 0.1, 0.05, d + 0.1, cx, 0.025, cz, 0xcfc4b0, null, 0.02); sb.box(1.5, 0.052, d - 0.4, cx, 0.027, cz, 0xb8ac98, null, 0.02);
+  for (const [bx, bz, bw, bd] of [[cx, z1, w, 0.1], [x0, cz, 0.1, d], [x1, cz, 0.1, d], [cx - w / 4 - 0.27, z0, w / 2 - 0.54, 0.1], [cx + w / 4 + 0.27, z0, w / 2 - 0.54, 0.1]]) sb.box(bw, 0.4, bd, bx, 0.2, bz, BR, null, 0.04);
+  const n = 5; for (let i = 0; i <= n; i++) { const z = z0 + (d * i) / n; for (const x of [x0, x1]) sb.box(0.06, h, 0.06, x, h / 2, z, WHT, null, 0); const sl = Math.hypot(rh, w / 2), ang = Math.atan2(rh, w / 2); for (const s of [-1, 1]) sb.box(sl, 0.05, 0.05, cx + (s * w) / 4, h + rh / 2, z, WHT, RZ(-s * ang), 0); }
+  for (const x of [x0, x1]) sb.box(0.06, 0.06, d, x, h, cz, WHT, null, 0); sb.box(0.07, 0.07, d + 0.1, cx, h + rh, cz, WHT, null, 0);
+  for (const z of [z0, z1]) { sb.box(w, 0.06, 0.06, cx, h, z, WHT, null, 0); sb.box(0.05, rh, 0.05, cx, h + rh / 2, z, WHT, null, 0); }
+  for (const x of [cx - 0.54, cx + 0.54]) sb.box(0.06, h, 0.06, x, h / 2, z0, WHT, null, 0); sb.box(1.1, 0.06, 0.06, cx, 2.05, z0, WHT, null, 0);
+  for (const x of [x0, x1]) pane(d, h - 0.4, x, 0.4 + (h - 0.4) / 2, cz, Math.PI / 2); pane(w, h - 0.4, cx, 0.4 + (h - 0.4) / 2, z1);
+  for (const s of [-1, 1]) pane(w / 2 - 0.54, h - 0.4, cx + s * (w / 4 + 0.27), 0.4 + (h - 0.4) / 2, z0);
+  { const sl = Math.hypot(rh, w / 2), ang = Math.atan2(rh, w / 2); for (const s of [-1, 1]) { const g = new THREE.PlaneGeometry(sl, d); g.applyMatrix4(mul(T(cx + (s * w) / 4, h + rh / 2, cz), RZ(-s * ang), RX(-Math.PI / 2))); panes.push(g); } }
+  const gm = new THREE.Mesh(mergeGeometries(panes), glass); gm.renderOrder = 4; grp.add(gm);
+  // benches + pots
+  for (const s of [-1, 1]) { const bx = s < 0 ? x0 + 0.5 : x1 - 0.5; sb.box(0.6, 0.05, d - 0.9, bx, 0.72, cz + 0.15, 0xb98a5e); for (const z of [z0 + 0.75, cz + 0.15, z1 - 0.45]) for (const dx of [-0.24, 0.24]) sb.box(0.05, 0.7, 0.05, bx + dx, 0.35, z, 0x8a6648); sb.box(0.5, 0.03, d - 1.1, bx, 0.3, cz + 0.15, 0xa87a50);
+    for (let i = 0; i < 7; i++) { const z = z0 + 0.95 + i * ((d - 1.6) / 6), y = 0.745;
+      sb.lathe([[0.001, 0], [0.12, 0], [0.13, 0.03], [0.175, 0.26], [0.195, 0.27], [0.195, 0.3], [0.17, 0.3], [0.165, 0.28]], bx, y, z, [0xc66f48, 0x7fa8a0, 0xd8b06a, 0xe8e0d0][(i + (s > 0 ? 1 : 0) + zone) % 4], 14, undefined, 0.02);
+      const sp = addSpot({ group: 'G' + zone + (s < 0 ? 'w' : 'e'), type: 'green', zone, pos: new V3(bx, y + 0.29, z), stand: new V3(bx - s * 0.95, 0, z), scale: 1.3, pickR: 0.22, pickH: 0.9, pickY: -0.25 });
+      sp.soil = mound(grp, bx, y + 0.275, z, 0.165, 0.2); } }
+  // a hose reel and a watering can by the door, for charm
+  sb.cyl(0.16, 0.16, 0.08, x1 - 0.35, 0.45, z0 + 0.3, 0x5a8a7a, 12, RX(Math.PI / 2)); sb.box(0.05, 0.45, 0.05, x1 - 0.35, 0.22, z0 + 0.3, 0x4a4a4a);
+}
+
 function buildDecor(scene, world) {
   world.decorBlocks = [];
   const mk = (id, fn, block) => { const sb = new SB(400 + id.length), g = new THREE.Group(); fn(sb, g); if (sb.g.length) g.add(sb.mesh(propMat)); g.visible = false; scene.add(g); world.decor[id] = g; if (block) world.decorBlocks.push({ id, ...block }); };
@@ -600,19 +652,19 @@ function buildGrass(scene, world, q, unlocked) {
     if (onPath(x, z)) return false;
     for (const b of BEDR) if (inRect(x, z, b, 0.1)) return false;
     if (inPond(x, z, 0.28)) return false;
-    if (inRect(x, z, GREEN, 0.05)) return false;
+    if (inRect(x, z, GREEN, 0.05) || inBigGreen(x, z, 0.05)) return false;
     for (const p of POTS) if ((x - p.x) ** 2 + (z - p.zc) ** 2 < 0.1) return false;
     for (const t of TREES) if ((x - t.x) ** 2 + (z - t.zc) ** 2 < 0.45) return false;
     return true;
   };
-  const N = 78000;
+  const N = 98000;
   const zoneIdx = ZONES.map(() => []);
   const o = new THREE.Object3D(), c = new THREE.Color();
   const recs = [];
   for (let i = 0; i < N; i++) {
-    const inside = i < N * 0.74;
+    const inside = i < N * 0.8;
     let x, z;
-    if (inside) { x = r.range(-12.5, 12.5); z = r.range(-9.1, 14.6); } else { const a = r() * TAU, rr = 13 + Math.pow(r(), 1.6) * 22; x = Math.cos(a) * rr * 1.1; z = 3 + Math.sin(a) * rr; if (Math.abs(x) < 12.6 && z > -9.2 && z < 14.7) continue; if (Math.abs(x) < 5.2 && z < -6) continue; if (Math.abs(x) < 0.9 && z > 14) continue; }
+    if (inside) { x = r.range(-LAND - 0.3, LAND + 0.3); z = r.range(-9.1, 14.6); } else { const a = r() * TAU, rr = 13 + Math.pow(r(), 1.6) * 26; x = Math.cos(a) * rr * 1.7; z = 3 + Math.sin(a) * rr; if (Math.abs(x) < LAND + 0.4 && z > -9.2 && z < 14.7) continue; if (Math.abs(x) < 5.2 && z < -6) continue; if (Math.abs(x) < 0.9 && z > 14) continue; }
     if (inside && !free(x, z)) continue;
     const zn = inside ? zoneAt(x, z) : -1;
     recs.push({ x, z, zn, s: r.range(0.75, 1.25), rot: r() * TAU, hue: r(), wild: r.range(1.7, 2.8) });

@@ -1,6 +1,6 @@
 // Tiny grid A* so the gardener walks around beds, pots and the pond
-const CELL = 0.4, X0 = -12.4, Z0 = -8.8, NX = 63, NZ = 60;
-export function createNav(blockedFn) {
+export function createNav(blockedFn, o = {}) {
+  const CELL = o.cell ?? 0.4, X0 = o.x0 ?? -12.4, Z0 = o.z0 ?? -8.8, NX = o.nx ?? 63, NZ = o.nz ?? 60, GUARD = o.guard ?? 6000;
   let grid = null;
   const build = () => { grid = new Uint8Array(NX * NZ); for (let j = 0; j < NZ; j++) for (let i = 0; i < NX; i++) grid[j * NX + i] = blockedFn(X0 + i * CELL, Z0 + j * CELL) ? 1 : 0; };
   const cell = (x, z) => [Math.max(0, Math.min(NX - 1, Math.round((x - X0) / CELL))), Math.max(0, Math.min(NZ - 1, Math.round((z - Z0) / CELL)))];
@@ -15,7 +15,7 @@ export function createNav(blockedFn) {
     const s = sj * NX + si, goal = tj * NX + ti; gS[s] = 0; open.push([0, s]);
     const h = (n) => { const i = n % NX, j = (n / NX) | 0; return Math.hypot(i - ti, j - tj); };
     let found = false, guard = 0;
-    while (open.length && guard++ < 6000) {
+    while (open.length && guard++ < GUARD) {
       let bi = 0; for (let k = 1; k < open.length; k++) if (open[k][0] < open[bi][0]) bi = k;
       const [, n] = open.splice(bi, 1)[0]; if (closed[n]) continue; closed[n] = 1; if (n === goal) { found = true; break; }
       const i = n % NX, j = (n / NX) | 0;

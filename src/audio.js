@@ -47,10 +47,10 @@ export function createAudio(base = 'audio/') {
     const src = A.ctx.createBufferSource(), g = A.ctx.createGain(); src.buffer = b; src.playbackRate.value = rate * (0.96 + Math.random() * 0.08); g.gain.value = vol; src.connect(g); g.connect(sfxGain); src.start();
   };
   A.setVolumes = (m, s) => { A.musicVol = m; A.sfxVol = s; if (!A.ready) return; musicGain.gain.value = m; sfxGain.gain.value = s; ambGain.gain.value = Math.min(1, s * 1.1); };
-  A.update = (night, rain) => {
+  A.update = (night, rain, indoor = false) => {
     A.night = night; A.rain = rain; if (!A.ready) return;
-    const t = A.ctx.currentTime, set = (g, v) => g && g.gain.setTargetAtTime(v, t, 1.2);
-    set(amb.day, (1 - night) * (1 - rain * 0.7) * 0.9); set(amb.night, night * 0.9); set(amb.rain, rain * 0.9);
+    const t = A.ctx.currentTime, set = (g, v) => g && g.gain.setTargetAtTime(v, t, 1.2), k = indoor ? 0.3 : 1; // inside the house the garden sounds come muffled through the windows
+    set(amb.day, (1 - night) * (1 - rain * 0.7) * 0.9 * k); set(amb.night, night * 0.9 * k); set(amb.rain, rain * 0.9 * (indoor ? 0.55 : 1));
     if (cur && cur.night !== night > 0.6 && Math.abs(night - 0.6) > 0.25) { order = []; nextTrack(); }
   };
   A.pause = (p) => { if (A.ctx) p ? A.ctx.suspend() : A.ctx.resume(); };

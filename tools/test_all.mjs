@@ -55,15 +55,16 @@ await ev(() => { const g = window.__game; g.state.orderT = 0; }); await wait(250
 ok('an order arrived', await ev(() => window.__game.state.orders.length >= 1));
 await ev(() => { const g = window.__game, o = g.state.orders[0]; for (const it of o.items) g.state.basket[it.sp] = 9; g.game.tapThing('orders'); }); await wait(900);
 await p.click('[data-go]:not([disabled])'); await wait(900); ok('order delivered', await ev(() => window.__game.state.stats.orders === 1)); await closeAll();
-await idle(20000); const gpos = await ev(() => { const q = window.__game.gardener.group.position; return [q.x, 1.0, q.z]; });
+await idle(20000); for (let i = 0; i < 80 && (await ev(() => window.__game.gardener.state !== 'idle')); i++) await wait(500); const gpos = await ev(() => { const q = window.__game.gardener.group.position; return [q.x, 1.0, q.z]; });
 await lookAt(gpos[0], gpos[2], 6, 0.6); await wait(2500); await clickWorld(...gpos); await wait(1200);
-ok('tap on Eliane opens the wardrobe', (await p.textContent('#modal')).includes('Do seu jeito'));
+ok('tap on Eliane opens the wardrobe', (await p.textContent('#modal')).includes('Guarda-roupa'));
 await ev(() => { window.__game.state.coins = 60000; window.__game.state.xp = 30000; window.__game.ui.hud(); }); await closeAll(); await wait(1500); await closeAll();
-await ev(() => window.__game.game.tapThing('eliane')); await wait(700);
-let styleFails = [];
-for (const tab of ['roupas', 'acessorios', 'casa']) { await p.click(`[data-tab="${tab}"]`); await wait(400); const n = await p.$$eval('.sw', (els) => els.length);
-  for (let i = 0; i < n; i++) { const els = await p.$$('.sw'); await els[i].click(); await wait(120); } }
-ok('every wardrobe and paint option applies', await ev(() => window.__game.state.style.own.length >= 70), 'owned ' + (await ev(() => window.__game.state.style.own.length)));
+// every piece of the wardrobe gets bought and worn (this builds each garment), every colour of paint gets used
+const wr = await ev(async () => { const g = window.__game, W = g.game.ward, out = { n: 0, errs: [] }; g.state.coins = 5000000;
+  for (const slot in g.WARDROBE) for (const pc of g.WARDROBE[slot].list) { try { if (!W.owns(slot, pc.id)) W.buy(slot, pc.id); else W.put(slot, pc.id); W.tint(slot, pc.id, { c: 0x4aa8a8, c2: 0xf2c84a, p: 'florido' }); g.gardener.update(0.016, 1); out.n++; } catch (e) { out.errs.push(slot + ':' + pc.id + ' ' + e.message); } }
+  for (const k in g.STYLE) for (const o of g.STYLE[k].opts) g.game.pickStyle(k, o[0]); out.paint = g.state.style.own.length; out.owned = Object.keys(g.state.own).length; out.spent = 5000000 - g.state.coins; g.state.coins = 60000; g.ui.hud(); return out; });
+await wait(2500); await closeAll(); await wait(1500); await closeAll(); // buying clothes gives experience: let the level-up notes come and go
+ok('every wardrobe piece can be bought and worn, every paint applies', wr.errs.length === 0 && wr.owned >= 100 && wr.paint >= 15, JSON.stringify(wr).slice(0, 300));
 await closeAll();
 
 // 4. buy every area through the offer button
@@ -119,9 +120,9 @@ ok('visitors showed up', await ev(() => window.__game.state.seen.length >= 3), a
 await p.screenshot({ path: SP + '/all_garden.png' });
 
 // 10. save, reload, come back
-await ev(() => window.__game.game.save()); const before = await ev(() => ({ plants: Object.keys(window.__game.state.plants).length, items: window.__game.state.items.length, zones: window.__game.state.zones.length, own: window.__game.state.style.own.length }));
+await ev(() => window.__game.game.save()); const before = await ev(() => ({ plants: Object.keys(window.__game.state.plants).length, items: window.__game.state.items.length, zones: window.__game.state.zones.length, own: window.__game.state.style.own.length + Object.keys(window.__game.state.own).length }));
 await p.reload(); await p.waitForFunction(() => window.__ready, null, { timeout: 300000 }); await p.click('#start'); await wait(5000);
-const after = await ev(() => ({ plants: Object.keys(window.__game.state.plants).length, items: window.__game.state.items.length, zones: window.__game.state.zones.length, own: window.__game.state.style.own.length }));
+const after = await ev(() => ({ plants: Object.keys(window.__game.state.plants).length, items: window.__game.state.items.length, zones: window.__game.state.zones.length, own: window.__game.state.style.own.length + Object.keys(window.__game.state.own).length }));
 ok('garden survives closing and reopening', JSON.stringify(before) === JSON.stringify(after), JSON.stringify(after));
 ok('button says welcome back', true);
 await p.screenshot({ path: SP + '/all_reloaded.png' });

@@ -4,6 +4,8 @@ import { T, RX, RY, RZ, S, mul, frame, col, mixc, shade, jitterc, bez, polyAt, l
 import { G, leaf, leavesAlong, basalLeaves, fanLeaf, mkStem, head, floretBall, sprout, habitStems, habitBush, habitSpike, habitCascade, habitTree, habitClimber } from './parts.js';
 import { makePlantMaterial } from './plantmat.js';
 import { moreSpecies, rareSpecies, LOVES } from './species2.js';
+import { species3, LOVES3 } from './species3.js';
+import { species4, LOVES4 } from './species4.js';
 
 const V3 = THREE.Vector3;
 const W = col(0xffffff);
@@ -452,13 +454,17 @@ add({ id: 'alecrim', name: 'Alecrim', lvl: 3, price: 14, grow: 65, gift: 9, spot
     cols: [col(0x7a8ae8), col(0xaab8f8)], bud: col(0x7a9a7a), leaf: { n: 26, L: 0.026, W: 0.004, c: col(0x4f7a58), fold: 0, tilt: 0.8, t0: 0.08, t1: 0.98, taper: 0.2 }, from2: 1 }, g, Math.max(o, 0)) });
 
 // ---------- public API ----------
-moreSpecies(add, H); rareSpecies(add, H);
-for (const d of defs) if (!d.loves && LOVES[d.id]) d.loves = LOVES[d.id];
+moreSpecies(add, H); rareSpecies(add, H); species3(add, H); species4(add, H);
+for (const d of defs) { const lv = LOVES[d.id] || LOVES3[d.id] || LOVES4[d.id]; if (!d.loves && lv) d.loves = lv; }
 // Pacing: quick flowers take minutes, the grand ones take hours (they keep growing while the game is closed, as long as they have water)
 // PACE_V counts rebalances: saved gardens made under an older pace are converted when loaded (see game.js), so nobody's plant shrinks.
 export const PACE_V = 2;
-const PACE1 = [0, 9, 18, 28, 40, 55, 70, 85, 100, 115, 130, 150, 150, 150], PACE = [0, 30, 55, 80, 110, 140, 170, 200, 230, 260, 290, 320, 320, 320];
-for (const d of defs) { const l = Math.min(d.lvl, 13), k = d.tree ? 2 : d.climber ? 1.5 : 1; d.growOld = [0, Math.round(d.grow * PACE1[l] * k)]; d.everyOld = [0, 300 + d.lvl * 90]; d.grow = Math.round(d.grow * PACE[l] * k); d.every = 900 + d.lvl * 300; }
+const PACE1 = [0, 9, 18, 28, 40, 55, 70, 85, 100, 115, 130, 150, 150, 150], PACE = [0, 30, 55, 80, 110, 140, 170, 200, 230, 260, 290, 320, 320, 320, 345, 370, 395, 420, 445, 470, 500];
+for (const d of defs) { const l = Math.min(d.lvl, 20), l1 = Math.min(d.lvl, 13), k = d.tree ? 2 : d.climber ? 1.5 : 1; d.growOld = [0, Math.round(d.grow * PACE1[l1] * k)]; d.everyOld = [0, 300 + d.lvl * 90]; d.grow = Math.round(d.grow * PACE[l] * k); d.every = 900 + d.lvl * 300; }
+// The vegetable patch is a real crop. crop = how many harvests a plant gives before its place is free again (0 = it stays for good).
+const CROP1 = new Set(['rabanete', 'alface', 'cenoura', 'beterraba', 'milho', 'repolho', 'abobora', 'brocolis', 'couve_flor', 'melancia', 'cenoura_roxa', 'alho', 'cebola', 'nabo', 'batata', 'amendoim', 'batata_doce', 'mandioca', 'inhame', 'gengibre', 'alho_poro', 'salsao', 'cabotia', 'melao', 'moranga', 'alcachofra', 'abacaxi']);
+const KEEP = new Set(['cebolinha', 'salsinha', 'hortela', 'morango', 'morango_branco', 'manjericao', 'alecrim', 'coentro', 'oregano', 'tomilho', 'camomila', 'erva_cidreira', 'manjerona', 'capim_limao', 'erva_doce', 'estragao', 'louro', 'amora_preta', 'framboesa', 'groselha', 'mirtilo', 'aspargo']);
+for (const d of defs) d.crop = !d.veg || KEEP.has(d.id) ? 0 : CROP1.has(d.id) ? 1 : 4;
 export const SPECIES = {};
 defs.sort((a, b) => a.lvl - b.lvl || a.price - b.price);
 for (const d of defs) SPECIES[d.id] = d;
@@ -485,7 +491,8 @@ export function buildPlantGeometry(id, seed, stage) {
   return b.build();
 }
 
+const STIFF = new Set(['cacto_bola', 'mandacaru', 'echeveria', 'planta_jade', 'babosa', 'lanca_de_sao_jorge', 'rabo_de_burro', 'colar_de_perolas', 'espada', 'bonsai', 'bonsai_bordo', 'bonsai_cerejeira', 'pata_de_elefante', 'iuca', 'abacaxi']);
 export function plantMaterialFor(id) {
   const sp = SPECIES[id];
-  return makePlantMaterial({ sway: sp.tree ? 0.04 : sp.climber ? 0.05 : sp.id === 'cacto' || sp.id === 'suculenta' ? 0.02 : sp.h > 1 ? 0.16 : 0.5, glow: sp.tree ? 0.1 : 0.12, phase: Math.random() * 6 });
+  return makePlantMaterial({ sway: sp.sway ?? (sp.tree ? 0.04 : sp.climber ? 0.05 : sp.id === 'cacto' || sp.id === 'suculenta' || STIFF.has(sp.id) ? 0.02 : sp.h > 1 ? 0.16 : 0.5), glow: sp.tree ? 0.1 : 0.12, phase: Math.random() * 6 });
 }

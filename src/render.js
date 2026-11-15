@@ -41,7 +41,7 @@ export function createRenderer(canvas, q) {
   R.setup = (scene, camera) => {
     const rt = new THREE.WebGLRenderTarget(4, 4, { samples: 4, type: THREE.HalfFloatType });
     const c = new EffectComposer(renderer, rt);
-    c.addPass(new RenderPass(scene, camera));
+    R.pass = new RenderPass(scene, camera); c.addPass(R.pass);
     bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.22, 0.7, 0.92); c.addPass(bloom);
     c.addPass(new OutputPass());
     final = new ShaderPass(FinalShader); final.uniforms.uBlur.value = R.q.blur ? 1 : 0; c.addPass(final);
@@ -52,7 +52,7 @@ export function createRenderer(canvas, q) {
     renderer.setPixelRatio(dpr); renderer.setSize(w, h, false);
     if (R.composer) { R.composer.setPixelRatio(dpr); R.composer.setSize(w, h); final.uniforms.uRes.value.set(w * dpr, h * dpr); }
   };
-  R.render = (scene, camera) => { if (R.composer && R.q.post) R.composer.render(); else renderer.render(scene, camera); };
+  R.render = (scene, camera) => { if (R.composer && R.q.post) { R.pass.scene = scene; R.composer.render(); } else renderer.render(scene, camera); };
   R.setQuality = (nq) => { R.q = nq; if (final) final.uniforms.uBlur.value = nq.blur ? 1 : 0; R.resize(R.w, R.h); };
   return R;
 }

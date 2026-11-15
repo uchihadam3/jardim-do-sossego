@@ -67,7 +67,7 @@ export function createCritters(scene, world, { S, G, env, fx, ui, audio }) {
   add('abelha', 3); add('joaninha'); add('beija_flor'); add('passarinho'); add('sapo'); add('libelula'); add('caracol'); add('gato');
   let bee = [], hum = [], any = [], pondBloom = 0, pondCount = 0, scanT = 0, wetT = 0, seeT = {};
   const scan = () => { bee = []; hum = []; any = []; pondBloom = 0; pondCount = 0;
-    for (const id in S.plants) { const p = S.plants[id], sp = SPECIES[p.sp], spot = world.spots[id], v = G.V[id]; if (!sp || !spot) continue; if (spot.type === 'pond') { pondCount++; if (p.grown >= sp.grow) pondBloom++; }
+    for (const id in S.plants) { const p = S.plants[id], sp = SPECIES[p.sp], spot = world.spots[id], v = G.V[id]; if (!sp || !spot || spot.indoor) continue; if (spot.type === 'pond') { pondCount++; if (p.grown >= sp.grow) pondBloom++; }
       if (p.grown < sp.grow) continue; const at = new V3(spot.pos.x, spot.pos.y + (v.h || 0.3) * 0.85, spot.pos.z);
       if (BEE.includes(p.sp)) bee.push(at); if (HUM.includes(p.sp)) hum.push(at); if (!sp.tree && !sp.climber && spot.type !== 'pond' && spot.type !== 'green') any.push({ at, spot }); } };
   const see = (id, on, dt) => { if (!on || S.seen.includes(id)) return; seeT[id] = (seeT[id] || 0) + dt; if (seeT[id] > 2.5) { S.seen.push(id); const c = CRITTERS.find((x) => x.id === id); audio.sfx('bloom', 0.7, 1.1); ui.toast(`Novo visitante no jardim: ${c.name}!`, 'good'); G.sys.log(`Recebi a visita de: ${c.name}.`); G.save(); } };
