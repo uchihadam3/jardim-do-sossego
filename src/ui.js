@@ -78,6 +78,7 @@ export function createUI({ project, thumbs, audio }) {
     const tier = (a, b) => open.filter((x) => x.cat !== 'rara' && x.sp.lvl >= a && x.sp.lvl <= b);
     const tabs = [['box', 'Guardadas', open.filter((x) => x.box > 0)], ['rec', 'Recentes', rec], ['season', 'Na estação', open.filter((x) => G.sys.inSeason(x.sp))], ['t1', 'Simples', tier(1, 3)], ['t2', 'Especiais', tier(4, 7)], ['t3', 'Nobres', tier(8, 99)], ['folhagem', 'Folhagens', open.filter((x) => x.cat === 'folhagem')], ['horta', 'Horta', open.filter((x) => x.cat === 'horta')], ['rara', 'Raras', open.filter((x) => x.cat === 'rara')], ['all', 'Todas', open]]
       .filter(([k, , l]) => l.length && (k === 'all' || k === 'rec' || k === 'box' || (open.length > 8 && l.length < open.length)));
+    const boxN = open.reduce((n, x) => n + (x.box || 0), 0); U._boxN = U._boxN || {}; if (!tab && boxN > (U._boxN[spot.type] || 0)) pickTab = 'box'; U._boxN[spot.type] = boxN; // a seedling was just put away: show the saved ones first
     pickTab = tab || (tabs.some((t) => t[0] === pickTab) ? pickTab : rec.length ? 'rec' : 'all'); if (!tabs.some((t) => t[0] === pickTab)) pickTab = 'all';
     // pages instead of scrolling: only as many cards as fit in the sheet
     const full = [...tabs.find((t) => t[0] === pickTab)[2], ...(pickTab === 'all' ? soon : [])], many = fillBed && sibs > 1, per = innerWidth <= 520 ? 8 : Math.max(5, Math.floor((innerWidth - 24) / 104)) * (innerHeight < 700 ? 1 : 2), pages = Math.max(1, Math.ceil(full.length / per));
