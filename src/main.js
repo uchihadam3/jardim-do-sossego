@@ -12,6 +12,7 @@ import { SPECIES_LIST, buildPlantGeometry, plantMaterialFor } from './species.js
 import { windU } from './plantmat.js';
 import { clamp, lerp, smooth } from './util.js';
 import { createCritters, critterModel, CRITTERS } from './critters.js';
+import { DECO, buildDeco } from './decor.js';
 
 const V3 = THREE.Vector3;
 const $ = (s) => document.querySelector(s);
@@ -43,6 +44,21 @@ async function makeThumbs(renderer, onProgress) {
     renderer.setRenderTarget(rt); renderer.setClearColor(0x000000, 0); renderer.clear(); renderer.render(sc, cam); renderer.readRenderTargetPixels(rt, 0, 0, N, N, buf); renderer.setRenderTarget(null);
     const img = ctx.createImageData(N, N); for (let y = 0; y < N; y++) img.data.set(buf.subarray((N - 1 - y) * N * 4, (N - y) * N * 4), y * N * 4);
     ctx.putImageData(img, 0, 0); thumbs['c:' + c.id] = cv.toDataURL('image/png'); sc.remove(m); }
+  // garden ornaments
+  for (const d of DECO) { const m = buildDeco(d.id); sc.add(m); m.updateMatrixWorld(true);
+    const bb = new THREE.Box3().setFromObject(m), ctr = bb.getCenter(new V3()), size = bb.getSize(new V3()), r = Math.max(size.x, size.y, size.z) * 0.62 + 0.02, dist = r / Math.tan((13 * Math.PI) / 180);
+    cam.position.set(ctr.x + dist * 0.45, ctr.y + dist * 0.42, ctr.z + dist * 0.78); cam.lookAt(ctr); cam.near = dist * 0.1; cam.far = dist * 4; cam.updateProjectionMatrix();
+    renderer.setRenderTarget(rt); renderer.setClearColor(0x000000, 0); renderer.clear(); renderer.render(sc, cam); renderer.readRenderTargetPixels(rt, 0, 0, N, N, buf); renderer.setRenderTarget(null);
+    const img = ctx.createImageData(N, N); for (let y = 0; y < N; y++) img.data.set(buf.subarray((N - 1 - y) * N * 4, (N - y) * N * 4), y * N * 4);
+    ctx.putImageData(img, 0, 0); thumbs['d:' + d.id] = cv.toDataURL('image/png'); sc.remove(m); }
+  // hats and hair styles, modelled by Eliane herself
+  { const pg = createGardener(); sc.add(pg.group); const shoot = (key, yaw) => { pg.update(0.016, 1); pg.group.updateMatrixWorld(true); const ctr = pg.J.head.getWorldPosition(new V3()); ctr.y += 0.02; const dist = 1.55;
+      cam.position.set(ctr.x + Math.sin(yaw) * dist, ctr.y + 0.25, ctr.z + Math.cos(yaw) * dist); cam.lookAt(ctr); cam.near = 0.1; cam.far = 10; cam.updateProjectionMatrix();
+      renderer.setRenderTarget(rt); renderer.setClearColor(0x000000, 0); renderer.clear(); renderer.render(sc, cam); renderer.readRenderTargetPixels(rt, 0, 0, N, N, buf); renderer.setRenderTarget(null);
+      const img = ctx.createImageData(N, N); for (let y = 0; y < N; y++) img.data.set(buf.subarray((N - 1 - y) * N * 4, (N - y) * N * 4), y * N * 4); ctx.putImageData(img, 0, 0); thumbs[key] = cv.toDataURL('image/png'); };
+    for (const h of ['palha', 'aba_larga', 'lenco', 'jardineira', 'laco', 'boina', 'coroa', 'nenhum']) { pg.setOutfit({ hat: h, hair: 'solto' }); shoot('o:hat:' + h, 0.5); }
+    for (const h of ['solto', 'rabo', 'tranca', 'coque']) { pg.setOutfit({ hat: 'nenhum', hair: h }); shoot('o:hair:' + h, h === 'tranca' ? 0.9 : 2.3); }
+    sc.remove(pg.group); }
   windU.uDay.value = oldDay; rt.dispose();
   return thumbs;
 }
@@ -117,6 +133,8 @@ async function boot() {
   const pickAt = (cx, cy) => {
     const r = canvas.getBoundingClientRect(); ndc.set(((cx - r.left) / r.width) * 2 - 1, -((cy - r.top) / r.height) * 2 + 1); ray.setFromCamera(ndc, camera);
     const hits = ray.intersectObjects(world.pickables.filter((m) => m.visible || !state.zones.includes(m.userData.spot.zone)), false);
+    const ih = ray.intersectObjects(world.items.map((it) => it.pick), false);
+    if (ih.length && (!hits.length || ih[0].distance < hits[0].distance)) return { item: ih[0].object.userData.item };
     const th = ray.intersectObjects(Object.values(world.things).map((t) => t.pick), false);
     const eh = ray.intersectObject(elianePick, false);
     if (eh.length && (!hits.length || eh[0].distance < hits[0].distance) && (!th.length || eh[0].distance < th[0].distance) && gardener.state === 'idle') return { thing: 'eliane' };
@@ -128,7 +146,7 @@ async function boot() {
   canvas.addEventListener('pointerdown', (e) => { canvas.setPointerCapture(e.pointerId); ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY }); if (ptrs.size === 1) { downAt = performance.now(); moved = 0; } else if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; pinch0 = Math.hypot(a.x - b.x, a.y - b.y); dist0 = cam.dist; moved = 99; } });
   canvas.addEventListener('pointermove', (e) => {
     const p = ptrs.get(e.pointerId);
-    if (!p) { if (e.pointerType === 'mouse' && started) { const h = pickAt(e.clientX, e.clientY); canvas.style.cursor = h.spot || h.thing ? 'pointer' : 'grab'; } return; }
+    if (!p) { if (e.pointerType === 'mouse' && started) { const h = pickAt(e.clientX, e.clientY); canvas.style.cursor = h.spot || h.thing || h.item ? 'pointer' : 'grab'; } return; }
     const dx = e.clientX - p.x, dy = e.clientY - p.y; p.x = e.clientX; p.y = e.clientY;
     if (ptrs.size === 1) { moved += Math.abs(dx) + Math.abs(dy); if (moved > 8) { cam.yaw -= dx * 0.006; cam.pitch = clamp(cam.pitch + dy * 0.004, 0.16, 1.3); } }
     else if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; const d = Math.hypot(a.x - b.x, a.y - b.y); if (pinch0 > 0) cam.dist = clamp(dist0 * (pinch0 / d), 3.5, 34); }
@@ -138,8 +156,10 @@ async function boot() {
     if (ptrs.size === 0 && moved <= 8 && performance.now() - downAt < 600 && started) {
       if (document.body.classList.contains('photo')) return;
       if (ui.open === 'modal') return;
+      if (game.placing) { const r = canvas.getBoundingClientRect(); ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1); ray.setFromCamera(ndc, camera); if (ray.ray.intersectPlane(plane, hit)) game.deco.move(hit.x, hit.z); return; }
       const h = pickAt(e.clientX, e.clientY);
-      if (h.thing) game.tapThing(h.thing);
+      if (h.item) game.tapItem(h.item);
+      else if (h.thing) game.tapThing(h.thing);
       else if (h.spot) game.tapSpot(h.spot);
       else if (h.ground) {
         const g = h.ground, zn = zoneAt(g.x, g.z);
@@ -151,7 +171,7 @@ async function boot() {
   };
   canvas.addEventListener('pointerup', up); canvas.addEventListener('pointercancel', (e) => ptrs.delete(e.pointerId));
   canvas.addEventListener('wheel', (e) => { e.preventDefault(); cam.dist = clamp(cam.dist * Math.exp(e.deltaY * 0.0011), 3.5, 34); }, { passive: false });
-  addEventListener('keydown', (e) => { if (e.key === 'Escape') { ui.closeCards(); ui.closeModal(); document.body.classList.remove('photo'); } });
+  addEventListener('keydown', (e) => { if (e.key === 'Escape' && game.placing) { game.deco.cancel(); return; } if (e.key === 'Escape') { ui.closeCards(); ui.closeModal(); document.body.classList.remove('photo'); } });
   document.addEventListener('visibilitychange', () => { if (document.hidden) { game.save(); audio.pause(true); } else audio.pause(false); });
   addEventListener('pagehide', () => game.save());
 
@@ -161,7 +181,7 @@ async function boot() {
   const frame = (now) => {
     if (maxFrames && started && ++frozen > maxFrames) { window.__frozen = true; return; }
     requestAnimationFrame(frame);
-    let dt = Math.min(0.1, (now - last) / 1000); last = now; if (document.hidden) return;
+    let dt = Math.min(0.1, Math.max(0, (now - last) / 1000)); last = now; // the first callback can carry a timestamp older than `last` if (document.hidden) return;
     const speed = +(params.get('speed') || 1); time += dt; windU.uTime.value = time;
     if (started) { for (let i = 0; i < speed; i++) game.update(dt); startT += params.get('nointro') ? 9 : dt; }
     gardener.update(dt, time);
@@ -173,6 +193,7 @@ async function boot() {
     // camera
     const gp = gardener.group.position, k = 1 - Math.exp(-3.2 * dt);
     if (!started) { cam.yaw = Math.sin(time * 0.06) * 0.55; tmp.set(0, 1.0, 1.5); cam.target.lerp(tmp, k); }
+    else if (game.placing) { tmp.set(game.placing.x, 0.6, game.placing.z); cam.target.lerp(tmp, k); }
     else if (cam.focusT > 0) { cam.focusT -= dt; cam.target.lerp(cam.focus, k); }
     else { tmp.set(gp.x, gp.y + 0.95, gp.z); cam.target.lerp(tmp, k); }
     const intro = started ? smooth(startT / 2.2) : 0, dist = lerp(27, cam.dist, intro), pitch = lerp(0.5, cam.pitch, intro);

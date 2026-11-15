@@ -6,6 +6,7 @@ import { clamp, lerp, easeOutBack, T, RX, RY, mul, col, mulberry } from './util.
 import { Builder } from './builder.js';
 import { makePlantMaterial } from './plantmat.js';
 import { attachSystems } from './systems.js';
+import { DECO, DECO_BY, buildDeco } from './decor.js';
 
 const SAVE_KEY = 'jardim-do-sossego-v1';
 export const WATER_MAX = 2 * 3600;
@@ -15,14 +16,23 @@ export const UPGRADES = [
   { id: 'can2', name: 'Regador dourado', price: 1800, desc: 'Rega longe e a água dura o dobro.', need: 'can1' },
   { id: 'sprinkler', name: 'Aspersores automáticos', price: 7500, desc: 'O jardim inteiro se rega sozinho.', need: 'can2' },
 ];
-// "do seu jeito": Eliane's clothes and the colours of the house. The first of each list is the free default.
+// "do seu jeito": Eliane's wardrobe and the colours of the house. opts: [id, name, value, value2]; the first of each list is free.
+// lv[i] = level at which option i shows up in the shop (so there is always something new to unlock).
 export const STYLE = {
-  dress: { name: 'Vestido', price: 200, opts: [['salvia', 'Verde-sálvia', 0x7fa08a], ['ceu', 'Azul-céu', 0x7fa8c8], ['rosa', 'Rosa-antigo', 0xd89aa4], ['manteiga', 'Amarelo-manteiga', 0xe8cf7a], ['lilas', 'Lilás', 0xa894c8], ['cereja', 'Cereja', 0xc8504a]] },
-  ribbon: { name: 'Fita do chapéu', price: 120, opts: [['coral', 'Coral', 0xe8736a], ['azul', 'Azul', 0x5a8ac8], ['sol', 'Amarelo', 0xf2c84a], ['lilas', 'Lilás', 0x9a7ac8], ['branca', 'Branca', 0xfaf4ec]] },
-  boots: { name: 'Galochas', price: 150, opts: [['mostarda', 'Mostarda', 0xdfa53c], ['vermelha', 'Vermelhas', 0xd8483a], ['verde', 'Verdes', 0x5a9a5a], ['azul', 'Azuis', 0x4a7ab8], ['rosa', 'Rosa', 0xe88aa8]] },
-  wall: { name: 'Paredes da casa', price: 400, house: true, opts: [['creme', 'Creme', 0xf6ecd9], ['amarela', 'Amarelinha', 0xf7e3a0], ['rosa', 'Rosada', 0xf2c8c2], ['azul', 'Azul-clarinha', 0xcfe0ea], ['verde', 'Verde-clarinha', 0xd4e6c8]] },
-  trim: { name: 'Porta e janelas', price: 300, house: true, opts: [['mar', 'Verde-mar', 0x5f8f8a, 0x6f93a8], ['vermelha', 'Vermelhas', 0xb8483a, 0xa8584a], ['marinho', 'Azul-marinho', 0x3f5f8a, 0x4a6a98], ['sol', 'Amarelas', 0xd8a83a, 0xc89a3a], ['lilas', 'Lilases', 0x8a6aa8, 0x9a7ab8]] },
-  fence: { name: 'Cerca', price: 350, house: true, opts: [['branca', 'Branca', 0xf3ede2], ['madeira', 'Madeira', 0xb98a5e], ['verde', 'Verde-menta', 0xa8c8a8], ['azul', 'Azul-claro', 0xb0c8dc]] },
+  dress: { name: 'Cor do vestido', tab: 'roupas', price: 180, lv: [1, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], opts: [['salvia', 'Verde-sálvia', 0x7fa08a], ['ceu', 'Azul-céu', 0x7fa8c8], ['rosa', 'Rosa-antigo', 0xd89aa4], ['manteiga', 'Manteiga', 0xe8cf7a], ['lilas', 'Lilás', 0xa894c8], ['cereja', 'Cereja', 0xc8504a], ['menta', 'Menta', 0x9fd0b8], ['pessego', 'Pêssego', 0xf2b48a], ['marinho', 'Marinho', 0x3f5a8a], ['branco', 'Branco', 0xf6f1e6], ['uva', 'Uva', 0x7a4a8a], ['turquesa', 'Turquesa', 0x4aa8a8], ['coral', 'Coral', 0xe8806a]] },
+  pattern: { name: 'Estampa', tab: 'roupas', price: 260, lv: [1, 2, 3, 4, 5, 6, 8, 10], opts: [['liso', 'Lisa', 'liso'], ['poa', 'Poá', 'poa'], ['listras', 'Listras', 'listras'], ['xadrez', 'Xadrez', 'xadrez'], ['florido', 'Florida', 'florido'], ['margaridas', 'Margaridas', 'margaridas'], ['coracoes', 'Corações', 'coracoes'], ['folhas', 'Folhagem', 'folhas']] },
+  apron: { name: 'Avental', tab: 'roupas', price: 220, lv: [1, 2, 4, 6, 8], opts: [['sem', 'Sem avental', null], ['branco', 'Branco', 0xfaf6ee], ['rosa', 'Rosinha', 0xf9d8e0], ['azul', 'Azulzinho', 0xd4e6f4], ['amarelo', 'Amarelinho', 0xf9ecc0]] },
+  blouse: { name: 'Blusa', tab: 'roupas', price: 140, lv: [1, 2, 3, 5, 7, 9], opts: [['branca', 'Branca', 0xfbf3e4], ['rosa', 'Rosa', 0xf7d0d8], ['azul', 'Azul', 0xcfe0f2], ['amarela', 'Amarela', 0xf7e8b0], ['lilas', 'Lilás', 0xe0d4f2], ['verde', 'Verde', 0xd4ecd0]] },
+  boots: { name: 'Galochas', tab: 'roupas', price: 150, lv: [1, 1, 2, 3, 4, 5, 6, 8, 10, 12], opts: [['mostarda', 'Mostarda', 0xdfa53c], ['vermelha', 'Vermelhas', 0xd8483a], ['verde', 'Verdes', 0x5a9a5a], ['azul', 'Azuis', 0x4a7ab8], ['rosa', 'Rosa', 0xe88aa8], ['branca', 'Brancas', 0xf4f0e8], ['lilas', 'Lilases', 0xa88ad8], ['laranja', 'Laranja', 0xf2903a], ['preta', 'Pretas', 0x3a3a44], ['turquesa', 'Turquesa', 0x4ab0b0]] },
+  hat: { name: 'Na cabeça', tab: 'acessorios', price: 320, lv: [1, 2, 3, 4, 5, 6, 7, 1], opts: [['palha', 'Chapéu de palha', 'palha'], ['aba_larga', 'Aba larga com laço', 'aba_larga'], ['lenco', 'Lenço', 'lenco'], ['jardineira', 'Chapéu de pano', 'jardineira'], ['laco', 'Laço', 'laco'], ['boina', 'Boina', 'boina'], ['coroa', 'Coroa de flores', 'coroa'], ['nenhum', 'Nada', 'nenhum']] },
+  ribbon: { name: 'Cor da fita, laço ou lenço', tab: 'acessorios', price: 110, lv: [1, 1, 2, 3, 4, 5, 6, 8], opts: [['coral', 'Coral', 0xe8736a], ['azul', 'Azul', 0x5a8ac8], ['sol', 'Amarelo', 0xf2c84a], ['lilas', 'Lilás', 0x9a7ac8], ['branca', 'Branca', 0xfaf4ec], ['verde', 'Verde', 0x6aa87a], ['rosa', 'Rosa', 0xf08ab0], ['vinho', 'Vinho', 0x8a2a4a]] },
+  hair: { name: 'Penteado', tab: 'acessorios', price: 280, lv: [1, 2, 4, 6], opts: [['solto', 'Solto', 'solto'], ['rabo', 'Rabo de cavalo', 'rabo'], ['tranca', 'Trança de lado', 'tranca'], ['coque', 'Coque', 'coque']] },
+  scarf: { name: 'Lencinho no pescoço', tab: 'acessorios', price: 130, lv: [1, 2, 3, 5, 7, 9], opts: [['sem', 'Sem lencinho', null], ['vermelho', 'Vermelho', 0xd8483a], ['azul', 'Azul', 0x5a8ac8], ['amarelo', 'Amarelo', 0xf2c84a], ['rosa', 'Rosa', 0xf08ab0], ['verde', 'Verde', 0x6aa87a]] },
+  gloves: { name: 'Luvas de jardinagem', tab: 'acessorios', price: 130, lv: [1, 3, 5, 7, 9], opts: [['sem', 'Sem luvas', null], ['rosa', 'Rosa', 0xf0a0b8], ['verde', 'Verdes', 0x7ab87a], ['amarela', 'Amarelas', 0xf2d06a], ['azul', 'Azuis', 0x8ab8e0]] },
+  basket: { name: 'Cestinha de flores', tab: 'acessorios', price: 350, lv: [1, 4], opts: [['sem', 'Sem cestinha', null], ['com', 'No braço', true]] },
+  wall: { name: 'Paredes da casa', tab: 'casa', price: 400, house: true, lv: [1, 2, 4, 6, 8], opts: [['creme', 'Creme', 0xf6ecd9], ['amarela', 'Amarelinha', 0xf7e3a0], ['rosa', 'Rosada', 0xf2c8c2], ['azul', 'Azul-clarinha', 0xcfe0ea], ['verde', 'Verde-clarinha', 0xd4e6c8]] },
+  trim: { name: 'Porta e janelas', tab: 'casa', price: 300, house: true, lv: [1, 2, 4, 6, 8], opts: [['mar', 'Verde-mar', 0x5f8f8a, 0x6f93a8], ['vermelha', 'Vermelhas', 0xb8483a, 0xa8584a], ['marinho', 'Azul-marinho', 0x3f5f8a, 0x4a6a98], ['sol', 'Amarelas', 0xd8a83a, 0xc89a3a], ['lilas', 'Lilases', 0x8a6aa8, 0x9a7ab8]] },
+  fence: { name: 'Cerca', tab: 'casa', price: 350, house: true, lv: [1, 3, 5, 7], opts: [['branca', 'Branca', 0xf3ede2], ['madeira', 'Madeira', 0xb98a5e], ['verde', 'Verde-menta', 0xa8c8a8], ['azul', 'Azul-claro', 0xb0c8dc]] },
 };
 export const STAGE_NAMES = ['', 'Brotinho', 'Crescendo', 'Em botão', 'Em flor'];
 
@@ -61,7 +71,7 @@ const QUESTS = [
 ];
 
 const fresh = () => ({ v: 1, coins: 45, xp: 0, zones: [0], decor: [], upg: [], plants: {}, quest: 0, album: [], stats: { planted: 0, watered: 0, collected: 0, blooms: 0, orders: 0, weeds: 0, prunes: 0, fert: 0 }, hour: 8.6, last: Date.now(), t0: Date.now(), tips: {},
-  style: { own: [] }, basket: {}, orders: [], orderT: 0, adubo: 0, daily: { last: '', streak: 0, best: 0 }, weeds: {}, wilt: {}, ach: {}, log: [], hybrids: [], seen: [], seasonsSeen: [], rare: {}, paint: {}, outfit: {}, settings: { music: 0.6, sfx: 0.8, quality: 'auto', time: 'auto' } });
+  style: { own: [] }, items: [], stored: {}, basket: {}, orders: [], orderT: 0, adubo: 0, daily: { last: '', streak: 0, best: 0 }, weeds: {}, wilt: {}, ach: {}, log: [], hybrids: [], seen: [], seasonsSeen: [], rare: {}, paint: {}, outfit: {}, settings: { music: 0.6, sfx: 0.8, quality: 'auto', time: 'auto' } });
 
 export function loadState() {
   const merge = (s) => Object.assign(fresh(), s, { settings: Object.assign(fresh().settings, s.settings), stats: Object.assign(fresh().stats, s.stats), daily: Object.assign(fresh().daily, s.daily) });
@@ -91,7 +101,7 @@ export function createGame({ scene, world, fx, audio, gardener, nav, env, ui, st
   G.count = (fn) => { let n = 0; for (const id in S.plants) if (!fn || fn(S.plants[id], world.spots[id])) n++; return n; };
   G.blooming = () => G.count((p) => p.grown >= SPECIES[p.sp].grow);
   G.bloomSpecies = () => { const set = new Set(); for (const id in S.plants) { const p = S.plants[id]; if (p.grown >= SPECIES[p.sp].grow) set.add(p.sp); } return set.size; };
-  G.beauty = () => { let b = 0; for (const id in S.plants) { const p = S.plants[id], sp = SPECIES[p.sp]; b += Math.round(sp.price * (p.grown >= sp.grow ? 0.5 : 0.12)); } for (const d of S.decor) b += DECOR.find((x) => x.id === d)?.beauty ?? 0; return b; };
+  G.beauty = () => { let b = 0; for (const id in S.plants) { const p = S.plants[id], sp = SPECIES[p.sp]; b += Math.round(sp.price * (p.grown >= sp.grow ? 0.5 : 0.12)); } for (const d of S.decor) b += DECOR.find((x) => x.id === d)?.beauty ?? 0; for (const r of S.items) b += DECO_BY[r.k]?.beauty ?? 0; return b; };
 
   // ---------- visuals ----------
   const makeSprite = (mat, s) => { const sp = new THREE.Sprite(mat); sp.scale.setScalar(s); sp.renderOrder = 10; sp.visible = false; scene.add(sp); return sp; };
@@ -153,6 +163,7 @@ export function createGame({ scene, world, fx, audio, gardener, nav, env, ui, st
     ui.closeCards();
   };
   G.tapSpot = (spot) => {
+    if (G.placing) return;
     if (!S.zones.includes(spot.zone)) { G.offerZone(spot.zone); return; }
     const p = S.plants[spot.id];
     if (!p) { if (spot.pending) return; audio.sfx('click', 0.35); ui.picker(spot, speciesFor(spot)); return; }
@@ -203,6 +214,38 @@ export function createGame({ scene, world, fx, audio, gardener, nav, env, ui, st
     S.coins -= u.price; S.upg.push(id); audio.sfx('levelup'); ui.toast(`${u.name}: ${u.desc}`, 'good'); ui.hud(); save();
   };
 
+  // ---------- ornaments: buy, place anywhere on the lawn, move, turn, store ----------
+  const items = world.items, pickMatD = new THREE.MeshBasicMaterial({ visible: false });
+  const ring = new THREE.Mesh(new THREE.RingGeometry(0.92, 1, 48), new THREE.MeshBasicMaterial({ color: 0x6ab85a, transparent: true, opacity: 0.85, depthWrite: false })); ring.rotation.x = -Math.PI / 2; ring.position.y = 0.04; ring.visible = false; ring.renderOrder = 6; scene.add(ring);
+  const addItem = (rec, group, animate) => { const def = DECO_BY[rec.k]; if (!def) return null; group = group || buildDeco(rec.k); group.position.set(rec.x, 0, rec.z); group.rotation.y = rec.r || 0; scene.add(group);
+    const h = Math.max(0.5, new THREE.Box3().setFromObject(group).max.y), pick = new THREE.Mesh(new THREE.CylinderGeometry(Math.max(0.25, def.r * 0.8), Math.max(0.25, def.r * 0.8), h, 8), pickMatD); pick.position.set(rec.x, h / 2, rec.z); scene.add(pick);
+    const it = { rec, def, group, pick, pop: animate ? 0 : 1 }; pick.userData.item = it; items.push(it); return it; };
+  const dropItem = (it, keepGroup) => { if (!keepGroup) scene.remove(it.group); scene.remove(it.pick); const i = items.indexOf(it); if (i >= 0) items.splice(i, 1); };
+  const showGhost = () => { const p = G.placing; if (!p) { ring.visible = false; return; } p.group.position.set(p.x, 0, p.z); p.group.rotation.y = p.rot; p.ok = world.canPlace(p.x, p.z, p.def.r, null, S.zones);
+    ring.visible = true; ring.position.set(p.x, 0.045, p.z); ring.scale.setScalar(Math.max(0.3, p.def.r)); ring.material.color.setHex(p.ok ? 0x6ab85a : 0xe2685f); };
+  const beginPlacing = (p) => { cancelAll(); ui.closeCards(); ui.closeModal(); const gp = gardener.group.position; if (p.x == null) { p.x = Math.round((gp.x + Math.sin(gardener.heading) * (1.2 + p.def.r)) * 4) / 4; p.z = Math.round((gp.z + Math.cos(gardener.heading) * (1.2 + p.def.r)) * 4) / 4; }
+    if (!p.group.parent) scene.add(p.group); G.placing = p; showGhost(); ui.placeBar(p.def); };
+  G.deco = {
+    buy: (id) => { const def = DECO_BY[id]; if (!def) return; const have = S.stored[id] || 0;
+      if (!have) { if (level() < def.lvl) { audio.sfx('error'); ui.toast(`${def.name} chega no nível ${def.lvl}`, 'warn'); return; } if (S.coins < def.price) { audio.sfx('error'); ui.toast(`Faltam ${def.price - S.coins} moedas`, 'warn'); return; } }
+      beginPlacing({ id, def, group: buildDeco(id), rot: 0, mode: have ? 'stored' : 'new' }); },
+    move: (x, z) => { const p = G.placing; if (!p) return; p.x = Math.round(x * 4) / 4; p.z = Math.round(z * 4) / 4; showGhost(); },
+    rotate: () => { const p = G.placing; if (!p) return; p.rot = (p.rot + Math.PI / 4) % (Math.PI * 2); audio.sfx('click', 0.4); showGhost(); },
+    confirm: () => { const p = G.placing; if (!p) return; if (!p.ok) { audio.sfx('error'); ui.toast('Aqui não cabe. Toque em outro cantinho do gramado.', 'warn'); return; }
+      if (p.mode === 'new') { if (S.coins < p.def.price) { audio.sfx('error'); return; } S.coins -= p.def.price; addXp(8); } else if (p.mode === 'stored') S.stored[p.id] = Math.max(0, (S.stored[p.id] || 0) - 1);
+      const rec = p.mode === 'move' ? p.rec : { k: p.id, x: 0, z: 0, r: 0 }; rec.x = p.x; rec.z = p.z; rec.r = p.rot; if (p.mode !== 'move') S.items.push(rec);
+      addItem(rec, p.group, true); G.placing = null; ring.visible = false; ui.placeBar(null); nav.invalidate(); audio.sfx(p.mode === 'new' ? 'buy' : 'plant');
+      fx.sparkle(new THREE.Vector3(rec.x, 0.5, rec.z), 22, 0xfff0a0, Math.max(0.3, p.def.r * 0.6)); ui.hud(); save(); },
+    cancel: () => { const p = G.placing; if (!p) return; if (p.mode === 'move') addItem(p.rec, p.group, false); else scene.remove(p.group); G.placing = null; ring.visible = false; ui.placeBar(null); nav.invalidate(); },
+    startMove: (it) => { dropItem(it, true); nav.invalidate(); beginPlacing({ id: it.rec.k, def: it.def, group: it.group, rot: it.rec.r || 0, x: it.rec.x, z: it.rec.z, mode: 'move', rec: it.rec }); },
+    turn: (it) => { it.rec.r = ((it.rec.r || 0) + Math.PI / 4) % (Math.PI * 2); it.group.rotation.y = it.rec.r; audio.sfx('click', 0.4); save(); },
+    store: (it) => { dropItem(it); S.items.splice(S.items.indexOf(it.rec), 1); S.stored[it.rec.k] = (S.stored[it.rec.k] || 0) + 1; nav.invalidate(); audio.sfx('plant', 0.6, 1.2); ui.closeCards(); ui.toast(`${it.def.name} guardado. Está na lojinha para colocar de novo.`, 'info'); ui.hud(); save(); },
+  };
+  G.tapItem = (it) => { audio.sfx('click', 0.35); ui.decoCard(it); };
+  const tickItems = (dt) => { for (const it of items) { const u = it.group.userData; if (u.tick) u.tick(dt, G.time, env.night, fx, it.group.position); if (u.glow) for (const m of u.glow) m.emissiveIntensity = m.userData.e * Math.max(env.night, u.dayGlow || 0);
+      if (it.pop < 1) { it.pop = Math.min(1, it.pop + dt * 2.2); it.group.scale.setScalar(0.6 + 0.4 * easeOutBack(it.pop)); } }
+    const p = G.placing; if (p) { const u = p.group.userData; if (u.tick) u.tick(dt, G.time, env.night, null, p.group.position); ring.material.opacity = 0.6 + 0.25 * Math.sin(G.time * 5); } };
+
   const refreshMarkers = () => { for (const spot of world.spots) V[spot.id].plus.visible = S.zones.includes(spot.zone) && !S.plants[spot.id] && !spot.pending; };
 
   // effects of each action
@@ -234,11 +277,13 @@ export function createGame({ scene, world, fx, audio, gardener, nav, env, ui, st
     S.adubo--; S.stats.fert = (S.stats.fert || 0) + 1; p.grown = Math.min(sp.grow, p.grown + sp.grow * 0.25); const at = spot.pos.clone(); at.y += 0.3; fx.sparkle(at, 20, 0xb8f08a, 0.3); audio.sfx('bloom', 0.6, 1.2); addXp(2); save(); };
   G.tapThing = (kind) => { audio.sfx('click', 0.35); if (kind === 'orders') ui.orders(); else if (kind === 'mail') ui.daily(); else if (kind === 'eliane') ui.style('roupas'); else if (kind === 'house') ui.style('casa'); };
   const styleOf = (k) => { const o = STYLE[k].opts; return o.find((x) => x[0] === S.style[k]) || o[0]; };
-  G.applyStyle = () => { gardener.setOutfit({ dress: styleOf('dress')[2], ribbon: styleOf('ribbon')[2], boots: styleOf('boots')[2] });
+  G.applyStyle = () => { const v = (k) => styleOf(k)[2];
+    gardener.setOutfit({ dress: v('dress'), pattern: v('pattern'), apron: v('apron'), blouse: v('blouse'), boots: v('boots'), hat: v('hat'), ribbon: v('ribbon'), hair: v('hair'), scarf: v('scarf'), gloves: v('gloves'), basket: v('basket') });
     const t = styleOf('trim'), key = [styleOf('wall')[0], t[0], styleOf('fence')[0]].join();
     if (G._painted !== key) { if (G._painted || key !== 'creme,mar,branca') { world.paintHouse({ wall: styleOf('wall')[2], door: t[2], shut: t[3] }); world.paintFence(styleOf('fence')[2]); } G._painted = key; } };
-  G.pickStyle = (k, id) => { const def = STYLE[k], opt = def.opts.find((x) => x[0] === id); if (!opt) return false; const own = id === def.opts[0][0] || S.style.own.includes(k + ':' + id);
-    if (!own) { if (S.coins < def.price) { audio.sfx('error'); ui.toast(`Faltam ${def.price - S.coins} moedas para esta cor`, 'warn'); return false; } S.coins -= def.price; S.style.own.push(k + ':' + id); audio.sfx('buy'); fx.burst(gardener.group.position, [opt[2], 0xffffff, 0xffe680], 26, 1); ui.hud(); }
+  G.pickStyle = (k, id) => { const def = STYLE[k], i = def.opts.findIndex((x) => x[0] === id), opt = def.opts[i]; if (!opt) return false; const own = i === 0 || S.style.own.includes(k + ':' + id), need = (def.lv && def.lv[i]) || 1;
+    if (!own && level() < need) { audio.sfx('error'); ui.toast(`Chega no nível ${need}`, 'warn'); return false; }
+    if (!own) { if (S.coins < def.price) { audio.sfx('error'); ui.toast(`Faltam ${def.price - S.coins} moedas para esta cor`, 'warn'); return false; } S.coins -= def.price; S.style.own.push(k + ':' + id); audio.sfx('buy'); fx.burst(gardener.group.position, [typeof opt[2] === 'number' ? opt[2] : 0xff9ab8, 0xffffff, 0xffe680], 26, 1); ui.hud(); }
     else audio.sfx('click', 0.5);
     S.style[k] = id; G.applyStyle(); if (!def.house) gardener.play('cheer', 1.2); save(); return true; };
   const doRemove = (spot) => { delete S.weeds[spot.id]; delete S.wilt[spot.id]; delete S.rare[spot.id]; delete S.plants[spot.id]; rebuild(spot); fx.dust(spot.pos, 14); audio.sfx('plant', 0.8, 0.8); refreshMarkers(); ui.closeCards(); checkQuest(); save(); };
@@ -341,7 +386,7 @@ export function createGame({ scene, world, fx, audio, gardener, nav, env, ui, st
     const ob = thingBubble.orders, mb = thingBubble.mail, bob = Math.sin(G.time * 2.4) * 0.04;
     if (ob) { ob.visible = G.sys.anyDeliverable(); ob.position.y = world.things.orders.top + 0.25 + bob; }
     if (mb) { const rdy = G.sys.dailyReady(); mb.visible = rdy; mb.position.y = world.things.mail.top + 0.25 + bob; if (world.mailFlag) world.mailFlag.rotation.x += ((rdy ? 0 : -1.5) - world.mailFlag.rotation.x) * Math.min(1, dt * 4); }
-    G.sys.tick(dt);
+    G.sys.tick(dt); tickItems(dt);
     questT -= dt; if (questT < 0) { questT = 1; checkQuest(); }
     saveT += dt; if (saveT > 10) { saveT = 0; save(); }
   };
@@ -360,6 +405,7 @@ export function createGame({ scene, world, fx, audio, gardener, nav, env, ui, st
       if (th > 0) p.wet = Math.max(0, p.wet - away * th);
       rebuild(world.spots[id]);
     }
+    if (!S.items) S.items = []; if (!S.stored) S.stored = {}; for (const rec of S.items.slice()) if (!addItem(rec)) S.items.splice(S.items.indexOf(rec), 1);
     G.away = away; G.sys.init(away); if (!S.style || !S.style.own) S.style = { own: [] }; G.applyStyle();
     refreshMarkers(); ui.hud(); checkQuest();
   };

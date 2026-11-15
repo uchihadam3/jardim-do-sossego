@@ -1,0 +1,13 @@
+import { createRequire } from 'module'; const { chromium } = createRequire(import.meta.url)('playwright');
+const b = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
+const p = await b.newPage({ viewport: { width: 900, height: 600 } });
+p.on('pageerror', (e) => console.log('[pageerror]', e.message));
+await p.goto('http://localhost:8765/local.html?q=baixa&nointro=1');
+await p.waitForFunction(() => window.__ready, null, { timeout: 300000 });
+await p.click('#start'); await p.waitForTimeout(2000);
+const probe = () => p.evaluate(() => { const g = window.__game.gardener, a = g.J.skirt.children[0].geometry.attributes.position.array; let mx = 0, bad = 0, idx = -1; for (let i = 0; i < a.length; i++) { if (!isFinite(a[i])) bad++; if (Math.abs(a[i]) > mx) { mx = Math.abs(a[i]); idx = i; } } return { mx: +mx.toFixed(3), bad, idx, comp: idx % 3, n: a.length / 3, state: g.state, pos: [g.group.position.x.toFixed(2), g.group.position.z.toFixed(2)] }; });
+console.log('idle', JSON.stringify(await probe()));
+await p.evaluate(() => window.__game.game.tapGround(3, 2)); await p.waitForTimeout(5000); console.log('walk', JSON.stringify(await probe()));
+await p.evaluate(() => { const g = window.__game; g.game.tapSpot(g.world.spots[1]); }); await p.waitForTimeout(700); await p.click('.seed:not(.locked)'); await p.waitForTimeout(16000); console.log('plant', JSON.stringify(await probe()));
+await p.waitForTimeout(8000); console.log('after', JSON.stringify(await probe()));
+await b.close();

@@ -148,14 +148,36 @@ body.playing #tags{opacity:1;visibility:visible}
 .albgrid.crit{grid-template-columns:repeat(auto-fill,minmax(132px,1fr))}
 .alb small{font-size:11px;font-weight:700;color:var(--ink-soft);line-height:1.25;margin-top:2px}
 .albgrid.crit .alb:not(.got) img{filter:brightness(0) opacity(.14)}
+.dgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(128px,1fr));gap:9px}
+.dcard{background:#fff;border:2px solid var(--line);border-radius:16px;padding:8px 9px 9px;text-align:left;display:flex;flex-direction:column;gap:3px;transition:transform .15s,border-color .15s}
+.dcard:hover{border-color:var(--leaf);transform:translateY(-3px)}
+.dcard .th{position:relative;height:96px;border-radius:11px;background:radial-gradient(circle at 50% 70%,#f3f8e6,#dcebd0);display:grid;place-items:center;overflow:hidden}
+.dcard img{width:96px;height:96px;object-fit:contain}
+.dcard .th em{position:absolute;right:5px;top:5px;font-style:normal;font-size:10px;font-weight:800;background:var(--leaf);color:#fff;border-radius:999px;padding:2px 7px}
+.dcard b{font-family:var(--display);font-weight:600;font-size:14.5px;line-height:1.1;margin-top:3px}
+.dcard small{font-size:11.5px;line-height:1.25;color:var(--ink-soft);font-weight:700;flex:1}
+.dprice{display:flex;align-items:center;gap:4px;font-family:var(--display);font-weight:600;font-size:14px;color:var(--honey-d);font-variant-numeric:tabular-nums}
+.dprice.have{color:var(--leaf-d);font-size:12.5px}
+.dcard.lk img{filter:grayscale(1) brightness(1.2);opacity:.5} .dcard.lk .dprice{color:var(--ink-soft)}
+#placebar{position:absolute;left:50%;bottom:max(14px,env(safe-area-inset-bottom,0px));width:min(560px,calc(100% - 32px));transform:translate(-50%,160%);transition:transform .3s cubic-bezier(.2,.9,.3,1);background:var(--paper);border-radius:22px;box-shadow:var(--shadow);padding:12px 14px;display:flex;flex-direction:column;gap:9px;align-items:center;text-align:center;visibility:hidden}
+#placebar.on{transform:translate(-50%,0);visibility:visible}
+#placebar span{font-weight:800;font-size:14px;color:var(--ink-soft)} #placebar span b{color:var(--ink);font-family:var(--display);font-weight:600;font-size:15.5px}
+#placebar div{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+body.placing #hud #quest,body.placing #menu,body.placing #tags{display:none}
 .swatches{display:flex;flex-wrap:wrap;gap:8px}
 .sw{display:flex;flex-direction:column;align-items:center;gap:3px;width:66px;padding:6px 2px;border-radius:14px;border:2px solid transparent}
 .sw i{width:38px;height:38px;border-radius:50%;box-shadow:inset 0 -3px 0 rgba(0,0,0,.12),0 2px 6px rgba(30,55,38,.25);border:3px solid #fff}
 .sw small{font-size:10.5px;font-weight:800;color:var(--ink-soft);line-height:1.1;display:flex;align-items:center;gap:2px;text-align:center}
 .sw small .ic{width:12px;height:12px}
+.sw i.fab{border-radius:12px;background-size:230px 58px;background-position:center}
+.sw i.none{background:repeating-linear-gradient(45deg,#fff,#fff 4px,#e8ecdc 4px,#e8ecdc 8px)}
+.sw i.yes{background:var(--honey)}
+.sw.pic{width:84px}
+.sw img{width:68px;height:68px;object-fit:contain;border-radius:14px;background:radial-gradient(circle at 50% 60%,#f3f8e6,#dcebd0)}
+.sw.lk{opacity:.45}
 .sw.on{border-color:var(--leaf);background:#eef6e2} .sw.on small{color:var(--leaf-d)}
 .sw:hover{background:var(--paper-2)}
-.panel.style{background:rgba(251,250,241,.96)}
+.panel.style{background:rgba(251,250,241,.97);max-height:min(62%,560px)}
 #modal:has(.panel.style){background:rgba(34,52,40,.12);backdrop-filter:none;place-items:end center}
 .item.rare{justify-content:flex-start}
 .r-th{width:64px;height:64px;object-fit:contain;flex:none;border-radius:12px;background:radial-gradient(circle at 50% 70%,#f3f8e6,#dcebd0)}
@@ -278,6 +300,7 @@ body.photo #photo-exit{display:inline-flex}
   <div class="grow"></div>
   <div id="toasts"></div>
   <div id="card"></div>
+  <div id="placebar"></div>
   <div id="sheet"></div>
   <button class="btn ghost" id="photo-exit">Voltar ao jardim</button>
 </div>
@@ -289,5 +312,5 @@ body.photo #photo-exit{display:inline-flex}
   <button class="btn big" id="start" hidden>Começar</button>
 </div>
 <div id="err" hidden></div>
-<script src="game.js?v=2046314963"></script>
+<script src="game.js?v=8d12bea662"></script>
 </body></html>

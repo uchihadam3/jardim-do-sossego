@@ -4,6 +4,8 @@ import { UPGRADES, STAGE_NAMES, LV, STYLE } from './game.js';
 import { SPECIES } from './species.js';
 import { ACH, DAILY } from './systems.js';
 import { CRITTERS } from './critters.js';
+import { DECO } from './decor.js';
+import { fabricCanvas } from './character.js';
 
 const $ = (s) => document.querySelector(s);
 const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html !== undefined) e.innerHTML = html; return e; };
@@ -106,11 +108,15 @@ export function createUI({ project, thumbs, audio }) {
   const shop = (tab = 'decor') => {
     const G = U.game, S = G.state;
     const dec = DECOR.map((d) => { const own = S.decor.includes(d.id); return `<div class="item ${own ? 'own' : ''}"><div><b>${d.name}</b><small>${d.desc}</small></div>${own ? '<span class="tagok">No jardim</span>' : `<button class="btn" data-buy="d:${d.id}" ${S.coins >= d.price ? '' : 'disabled'}>${ICON('coin')}${d.price}</button>`}</div>`; }).join('');
+    const lvl = G.level(), cats = [...new Set(DECO.map((d) => d.cat))];
+    const deco = cats.map((c) => `<div class="sgroup"><b>${c}</b><div class="dgrid">${DECO.filter((d) => d.cat === c).map((d) => { const have = S.stored[d.id] || 0, placed = S.items.filter((r) => r.k === d.id).length, locked = !have && lvl < d.lvl;
+      return `<button class="dcard ${locked ? 'lk' : ''}" data-deco="${d.id}"><div class="th"><img alt="" src="${thumbs['d:' + d.id] || ''}">${placed ? `<em>${placed} no jardim</em>` : ''}</div><b>${d.name}</b><small>${d.info}</small><span class="dprice ${have ? 'have' : ''}">${have ? `Colocar (${have} guardado${have > 1 ? 's' : ''})` : locked ? 'Nível ' + d.lvl : `${ICON('coin')}${d.price}`}</span></button>`; }).join('')}</div></div>`).join('');
     const upg = UPGRADES.map((u) => { const own = S.upg.includes(u.id), locked = u.need && !S.upg.includes(u.need); return `<div class="item ${own ? 'own' : ''}"><div><b>${u.name}</b><small>${u.desc}</small></div>${own ? '<span class="tagok">Comprado</span>' : locked ? '<span class="taglock">Depois do anterior</span>' : `<button class="btn" data-buy="u:${u.id}" ${S.coins >= u.price ? '' : 'disabled'}>${ICON('coin')}${u.price}</button>`}</div>`; }).join('');
     openModal(`<div class="p-h"><h2>Lojinha do jardim</h2><span class="wallet">${ICON('coin')}${S.coins}</span><button class="x" data-close aria-label="Fechar">${ICON('x')}</button></div>
       <div class="tabs"><button class="${tab === 'decor' ? 'on' : ''}" data-tab="decor">Decoração</button><button class="${tab === 'upg' ? 'on' : ''}" data-tab="upg">Melhorias</button><button data-style>Cores e roupas</button></div>
-      <div class="list">${tab === 'decor' ? dec : upg}</div><p class="hint">Sementes e mudas você escolhe tocando num lugar vazio do jardim.</p>`);
+      ${tab === 'decor' ? `<p class="hint">Escolha um enfeite e depois toque no gramado para dizer onde ele fica. Dá para mover, girar e guardar quando quiser.</p>${deco}<div class="sgroup"><b>Clássicos, com lugar certo</b><div class="list">${dec}</div></div>` : `<div class="list">${upg}</div>`}`, tab === 'decor' ? 'wide' : '');
     modal.querySelectorAll('[data-tab]').forEach((b) => (b.onclick = () => { click(); shop(b.dataset.tab); }));
+    modal.querySelectorAll('[data-deco]').forEach((b) => (b.onclick = () => { click(); G.deco.buy(b.dataset.deco); }));
     modal.querySelectorAll('[data-style]').forEach((b) => (b.onclick = () => { click(); U.style('roupas'); }));
     modal.querySelectorAll('[data-buy]').forEach((b) => (b.onclick = () => { const [k, id] = b.dataset.buy.split(':'); if (k === 'd') G.buyDecor(id); else G.buyUpgrade(id); shop(tab); }));
   };
@@ -148,17 +154,35 @@ export function createUI({ project, thumbs, audio }) {
       <p class="hint">Nenhuma planta sofre fora da estação; ela só fica no ritmo normal.</p>`); };
 
   // ---------- "do seu jeito": clothes and house colours ----------
+  const fabricUrl = {};
   U.style = (tab = 'roupas') => {
-    const G = U.game, S = G.state, hx = (n) => '#' + n.toString(16).padStart(6, '0');
-    const groups = Object.keys(STYLE).filter((k) => !!STYLE[k].house === (tab === 'casa')).map((k) => { const d = STYLE[k], cur = S.style[k] || d.opts[0][0];
-      return `<div class="sgroup"><b>${d.name}</b><div class="swatches">${d.opts.map((o, i) => { const own = i === 0 || S.style.own.includes(k + ':' + o[0]);
-        return `<button class="sw ${cur === o[0] ? 'on' : ''}" data-k="${k}" data-id="${o[0]}" title="${o[1]}" aria-label="${o[1]}"><i style="background:${hx(o[2])}"></i><small>${own ? o[1] : `${ICON('coin')}${d.price}`}</small></button>`; }).join('')}</div></div>`; }).join('');
+    const G = U.game, S = G.state, lvl = G.level(), hx = (n) => '#' + n.toString(16).padStart(6, '0');
+    const dressHex = (STYLE.dress.opts.find((o) => o[0] === S.style.dress) || STYLE.dress.opts[0])[2];
+    const groups = Object.keys(STYLE).filter((k) => STYLE[k].tab === tab).map((k) => { const d = STYLE[k], cur = S.style[k] || d.opts[0][0];
+      return `<div class="sgroup"><b>${d.name}</b><div class="swatches">${d.opts.map((o, i) => { const own = i === 0 || S.style.own.includes(k + ':' + o[0]), need = (d.lv && d.lv[i]) || 1, locked = !own && lvl < need;
+        let face; if (typeof o[2] === 'number') face = `<i style="background:${hx(o[2])}"></i>`;
+        else if (k === 'pattern') { const key = o[2] + dressHex; fabricUrl[key] ??= fabricCanvas(o[2], dressHex, null).toDataURL(); face = `<i class="fab" style="background-image:url(${fabricUrl[key]})"></i>`; }
+        else if (thumbs[`o:${k}:${o[0]}`]) face = `<img alt="" src="${thumbs[`o:${k}:${o[0]}`]}">`;
+        else face = `<i class="${o[2] ? 'yes' : 'none'}"></i>`;
+        return `<button class="sw ${cur === o[0] ? 'on' : ''} ${locked ? 'lk' : ''} ${face.startsWith('<img') ? 'pic' : ''}" data-k="${k}" data-id="${o[0]}" title="${o[1]}" aria-label="${o[1]}">${face}${face.startsWith('<img') && !own ? `<small>${o[1]}</small>` : ''}<small>${own ? o[1] : locked ? 'Nível ' + need : `${ICON('coin')}${d.price}`}</small></button>`; }).join('')}</div></div>`; }).join('');
+    const sc = modal.querySelector('.panel.style'), top = sc ? sc.scrollTop : 0;
     openModal(`<div class="p-h"><h2>Do seu jeito</h2><span class="wallet">${ICON('coin')}${S.coins}</span><button class="x" data-close aria-label="Fechar">${ICON('x')}</button></div>
-      <div class="tabs"><button class="${tab === 'roupas' ? 'on' : ''}" data-tab="roupas">Roupas da Eliane</button><button class="${tab === 'casa' ? 'on' : ''}" data-tab="casa">Casa e cerca</button></div>${groups}
-      <p class="hint">Cada cor nova é comprada uma vez só; depois é só trocar quando quiser.</p>`, 'style');
+      <div class="tabs"><button class="${tab === 'roupas' ? 'on' : ''}" data-tab="roupas">Roupas</button><button class="${tab === 'acessorios' ? 'on' : ''}" data-tab="acessorios">Cabelo e acessórios</button><button class="${tab === 'casa' ? 'on' : ''}" data-tab="casa">Casa e cerca</button></div>${groups}
+      <p class="hint">Cada peça é comprada uma vez só; depois é só trocar quando quiser. Novas peças aparecem conforme o seu nível sobe.</p>`, 'style');
+    const np = modal.querySelector('.panel.style'); if (np && U._styleTab === tab) np.scrollTop = top; U._styleTab = tab;
     modal.querySelectorAll('[data-tab]').forEach((b) => (b.onclick = () => { click(); U.style(b.dataset.tab); }));
     modal.querySelectorAll('.sw').forEach((b) => (b.onclick = () => { G.pickStyle(b.dataset.k, b.dataset.id); U.style(tab); }));
   };
+  // ---------- placing ornaments ----------
+  const bar = $('#placebar');
+  U.placeBar = (def) => { if (!def) { bar.classList.remove('on'); document.body.classList.remove('placing'); return; } document.body.classList.add('placing');
+    bar.innerHTML = `<span>Toque no gramado para escolher o lugar: <b>${def.name}</b></span><div><button class="btn ghost" id="pb-rot">Girar</button><button class="btn ghost" id="pb-no">Cancelar</button><button class="btn" id="pb-ok">Colocar aqui</button></div>`; bar.classList.add('on');
+    $('#pb-rot').onclick = () => U.game.deco.rotate(); $('#pb-no').onclick = () => { click(); U.game.deco.cancel(); }; $('#pb-ok').onclick = () => U.game.deco.confirm(); };
+  U.decoCard = (it) => { U.closeCards(); U.open = 'card';
+    card.innerHTML = `<img class="c-th" alt="" src="${thumbs['d:' + it.def.id] || ''}"><div class="c-b"><div class="c-n"><b>${it.def.name}</b><span>${ICON('flower')}+${it.def.beauty}</span></div><div class="c-row"><small style="width:auto;text-align:left">${it.def.info}</small></div>
+      <div class="c-act"><button class="btn" data-a="move">Mover</button><button class="btn ghost" data-a="turn">Girar</button><button class="btn ghost" data-a="store">Guardar</button><button class="btn ghost" data-a="close">Fechar</button></div></div>`;
+    card.querySelectorAll('button').forEach((b) => (b.onclick = () => { const a = b.dataset.a, D = U.game.deco; if (a === 'move') { click(); U.closeCards(); D.startMove(it); } else if (a === 'turn') D.turn(it); else if (a === 'store') D.store(it); else { click(); U.closeCards(); } }));
+    card.classList.add('on'); };
   // ---------- flower stall: neighbours' orders ----------
   U.orders = () => {
     const G = U.game, S = G.state, sys = G.sys;

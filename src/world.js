@@ -8,7 +8,7 @@ import { makePlantMaterial, windU } from './plantmat.js';
 const V3 = THREE.Vector3;
 
 // ---------- static geometry collector ----------
-class SB {
+export class SB {
   constructor(seed = 1) { this.g = []; this.rng = mulberry(seed); }
   add(geo, M, color, jitter = 0.03, color2) {
     geo = geo.index ? geo.toNonIndexed() : geo;
@@ -33,7 +33,7 @@ class SB {
     m.castShadow = shadow; m.receiveShadow = true; return m;
   }
 }
-const propMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.86 });
+export const propMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.86 });
 const propMat2 = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.86, side: THREE.DoubleSide });
 
 // ---------- layout ----------
@@ -304,7 +304,19 @@ export function createWorld(scene, q, unlocked) {
   world.setSeason = (id, now) => { gT.setRGB(...TINT[id][0]); tT.setRGB(...TINT[id][1]); if (now) { world.grass.material.color.copy(gT); world.bgTreeMat.color.copy(tT); world.ground.material.color.copy(gg.copy(g0).multiply(gT)); } };
   world.tickers.push((dt) => { const k = Math.min(1, dt * 0.6); world.grass.material.color.lerp(gT, k); world.bgTreeMat.color.lerp(tT, k); world.ground.material.color.lerp(gg.copy(g0).multiply(gT), k); });
   world.update = (dt, t) => { for (const f of world.tickers) f(dt, t); };
-  world.blocked = (x, z) => {
+  // ornaments placed by the player
+  world.items = [];
+  world.canPlace = (x, z, r, ignore, zones) => {
+    if (Math.abs(x) > 12.25 - r || z > 14.45 - r || z < -8.95 + r) return false;
+    if (Math.abs(x) < 5.0 + r && z < -4.7 + r) return false;
+    const zn = zoneAt(x, z); if (zn >= 0 && !zones.includes(zn)) return false;
+    for (let i = 0; i < 9; i++) { const a = (i / 8) * TAU, rr = i === 8 ? 0 : r * 0.9, px = x + Math.cos(a) * rr, pz = z + Math.sin(a) * rr; if (onPath(px, pz) || staticBlocked(px, pz)) return false; }
+    for (const s of world.spots) if (s.type !== 'hang' && s.type !== 'window' && Math.hypot(s.pos.x - x, s.pos.z - z) < r + 0.45) return false;
+    for (const it of world.items) if (it !== ignore && Math.hypot(it.rec.x - x, it.rec.z - z) < r + it.def.r) return false;
+    return true;
+  };
+  world.blocked = (x, z) => { if (staticBlocked(x, z)) return true; for (const it of world.items) if ((x - it.rec.x) ** 2 + (z - it.rec.z) ** 2 < (it.def.r * 0.85) ** 2) return true; return false; };
+  const staticBlocked = (x, z) => {
     if (Math.abs(x) > 12.2 || z > 14.4 || z < -8.9) return true;
     if (Math.abs(x) < 4.95 && z < -4.95) return z < -6.55 || Math.abs(x) > 4.6 || (Math.abs(Math.abs(x) - 4.05) < 0.45 && z < -5.3);
     for (const b of BEDS) if (inRect(x, z, bedRect(b), 0.22)) return true;

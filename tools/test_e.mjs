@@ -1,0 +1,26 @@
+import { createRequire } from 'module'; const { chromium } = createRequire(import.meta.url)('playwright');
+const SP = process.argv[2];
+const b = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
+const p = await b.newPage({ viewport: { width: 1280, height: 800 } });
+p.on('console', (m) => { if (m.type() === 'error') console.log('[error]', m.text().slice(0, 300)); });
+p.on('pageerror', (e) => console.log('[pageerror]', e.message, (e.stack || '').split('\n').slice(0, 4).join(' | ')));
+await p.goto('http://localhost:8765/local.html?q=baixa&nointro=1');
+await p.waitForFunction(() => window.__ready, null, { timeout: 300000 });
+await p.click('#start'); await p.waitForTimeout(2500);
+await p.evaluate(() => { const g = window.__game; g.state.coins = 30000; g.state.xp = 20000; g.ui.hud(); });
+await p.click('#b-shop'); await p.waitForTimeout(1200); await p.screenshot({ path: SP + '/e1_shop.png' });
+// buy and place several ornaments through the real API
+const res = await p.evaluate(() => { const g = window.__game, D = g.game.deco, out = [];
+  const tryPlace = (id, x, z, rot) => { D.buy(id); if (!g.game.placing) { out.push(id + ':no-placing'); return; } D.move(x, z); for (let i = 0; i < rot; i++) D.rotate(); const ok = g.game.placing.ok; D.confirm(); out.push(id + ':' + ok + ':' + !g.game.placing); if (g.game.placing) D.cancel(); };
+  tryPlace('fonte', 2.9, 1.5, 0); tryPlace('balanco', -3.2, 1.6, 2); tryPlace('catavento', 1.2, -3.0, 0); tryPlace('cogumelos', -1.3, -2.9, 0); tryPlace('bicicleta', 3.6, -3.4, 1); tryPlace('luzinhas', 0, 0.9, 0); tryPlace('fogueira', -3.4, -3.6, 0); tryPlace('coreto', 2.9, -1.3, 0); tryPlace('lampiao', 1.3, 0.2, 0); tryPlace('flamingo', -1.2, 1.2, 0); tryPlace('placa', 1.3, 3.0, 0);
+  return out.join(' ') + ' | items ' + g.state.items.length + ' coins ' + g.state.coins + ' beauty ' + g.game.beauty(); });
+console.log(res);
+await p.evaluate(() => { const g = window.__game; g.cam.yaw = 0.3; g.cam.pitch = 0.62; g.cam.dist = 14; g.state.hour = 10; });
+await p.waitForTimeout(9000); await p.screenshot({ path: SP + '/e2_placed.png' });
+await p.evaluate(() => { const g = window.__game; g.game.tapItem(g.world.items[0]); }); await p.waitForTimeout(1200); await p.screenshot({ path: SP + '/e3_card.png' });
+await p.evaluate(() => { const g = window.__game; g.game.deco.startMove(g.world.items[0]); g.game.deco.move(-2.5, 1.0); }); await p.waitForTimeout(2500); await p.screenshot({ path: SP + '/e4_moving.png' });
+console.log('moving ok?', await p.evaluate(() => window.__game.game.placing && window.__game.game.placing.ok));
+await p.evaluate(() => { const g = window.__game; g.game.deco.cancel(); g.game.deco.store(g.world.items[1]); g.game.tapThing('eliane'); });
+await p.waitForTimeout(1500); await p.click('[data-tab="acessorios"]'); await p.waitForTimeout(1200); await p.screenshot({ path: SP + '/e5_style.png' });
+console.log('end', await p.evaluate(() => JSON.stringify({ items: window.__game.state.items.length, stored: window.__game.state.stored })));
+await b.close();

@@ -20,6 +20,8 @@ world.setNight(env.night);
 const g = createGardener(); g.group.position.set(+(qs.get('gx') ?? 0.4), 0, +(qs.get('gz') ?? 1.2)); scene.add(g.group);
 if (qs.get('act')) { g.play(qs.get('act'), 2.1, { high: !!qs.get('high') }); for (let i = 0; i < 20; i++) g.update(0.05, i * 0.05); } if (qs.get('walk')) { g.state = 'walk'; g.speed = 2.2; }
 g.targetHeading = g.heading = +(qs.get('gh') ?? 0.4);
+if (qs.get('outfit')) g.setOutfit(JSON.parse(qs.get('outfit')));
+if (qs.get('walk')) { g.phase = +(qs.get('phase') ?? 1.2); for (let i = 0; i < 40; i++) { g.group.position.z += 0.03; g.update(0.016, i * 0.016); } }
 // sample plants
 if (!qs.get('empty')) world.spots.forEach((s, i) => {
   if (!unlocked.has(s.zone)) return;
