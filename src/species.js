@@ -455,8 +455,10 @@ add({ id: 'alecrim', name: 'Alecrim', lvl: 3, price: 14, grow: 65, gift: 9, spot
 moreSpecies(add, H); rareSpecies(add, H);
 for (const d of defs) if (!d.loves && LOVES[d.id]) d.loves = LOVES[d.id];
 // Pacing: quick flowers take minutes, the grand ones take hours (they keep growing while the game is closed, as long as they have water)
-const PACE = [0, 9, 18, 28, 40, 55, 70, 85, 100, 115, 130, 150, 150, 150];
-for (const d of defs) { d.grow = Math.round(d.grow * PACE[Math.min(d.lvl, 13)] * (d.tree ? 2 : d.climber ? 1.5 : 1)); d.every = 300 + d.lvl * 90; }
+// PACE_V counts rebalances: saved gardens made under an older pace are converted when loaded (see game.js), so nobody's plant shrinks.
+export const PACE_V = 2;
+const PACE1 = [0, 9, 18, 28, 40, 55, 70, 85, 100, 115, 130, 150, 150, 150], PACE = [0, 30, 55, 80, 110, 140, 170, 200, 230, 260, 290, 320, 320, 320];
+for (const d of defs) { const l = Math.min(d.lvl, 13), k = d.tree ? 2 : d.climber ? 1.5 : 1; d.growOld = [0, Math.round(d.grow * PACE1[l] * k)]; d.everyOld = [0, 300 + d.lvl * 90]; d.grow = Math.round(d.grow * PACE[l] * k); d.every = 900 + d.lvl * 300; }
 export const SPECIES = {};
 defs.sort((a, b) => a.lvl - b.lvl || a.price - b.price);
 for (const d of defs) SPECIES[d.id] = d;

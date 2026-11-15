@@ -122,7 +122,7 @@ async function boot() {
   let started = false, startT = 0, perfT = 0, perfN = 0, perfDone = false;
   const start = () => {
     if (started) return; started = true; audio.unlock(); document.body.classList.add('playing'); startT = 0;
-    if (game.away > 120 && game.count() > 0) setTimeout(() => ui.toast('Que bom te ver de volta! Veja quem está com sede.', 'info'), 1800);
+    if (game.away > 120 && game.count() > 0) setTimeout(() => ui.toast(game.awayGifts ? `Que bom te ver de volta! ${game.awayGifts} ${game.awayGifts === 1 ? 'planta guardou presente' : 'plantas guardaram presentes'} para você.` : 'Que bom te ver de volta! Veja quem está com sede.', 'info'), 1800);
     else if (!returning) setTimeout(() => ui.toast('Toque num + do canteiro para plantar sua primeira flor', 'info'), 1500);
   };
   startBtn.onclick = start;

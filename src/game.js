@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { SPECIES, SPECIES_LIST, buildPlantGeometry, plantMaterialFor } from './species.js';
+import { SPECIES, SPECIES_LIST, PACE_V, buildPlantGeometry, plantMaterialFor } from './species.js';
 import { ZONES, DECOR, groundY, zoneAt } from './world.js';
 import { bubbleTextures } from './fx.js';
 import { clamp, lerp, easeOutBack, T, RX, RY, mul, col, mulberry } from './util.js';
@@ -9,7 +9,7 @@ import { attachSystems } from './systems.js';
 import { DECO, DECO_BY, buildDeco } from './decor.js';
 
 const SAVE_KEY = 'jardim-do-sossego-v1';
-export const WATER_MAX = 2 * 3600;
+export const WATER_MAX = 4 * 3600;
 export const LV = [0, 60, 180, 380, 680, 1100, 1650, 2350, 3200, 4200, 5400, 6800, 8500, 10500, 13000, 16000, 20000, 25000];
 export const UPGRADES = [
   { id: 'can1', name: 'Regador de cobre', price: 450, desc: 'Rega uma área maior de uma só vez.', need: null },
@@ -34,6 +34,7 @@ export const STYLE = {
   trim: { name: 'Porta e janelas', tab: 'casa', price: 300, house: true, lv: [1, 2, 4, 6, 8], opts: [['mar', 'Verde-mar', 0x5f8f8a, 0x6f93a8], ['vermelha', 'Vermelhas', 0xb8483a, 0xa8584a], ['marinho', 'Azul-marinho', 0x3f5f8a, 0x4a6a98], ['sol', 'Amarelas', 0xd8a83a, 0xc89a3a], ['lilas', 'Lilases', 0x8a6aa8, 0x9a7ab8]] },
   fence: { name: 'Cerca', tab: 'casa', price: 350, house: true, lv: [1, 3, 5, 7], opts: [['branca', 'Branca', 0xf3ede2], ['madeira', 'Madeira', 0xb98a5e], ['verde', 'Verde-menta', 0xa8c8a8], ['azul', 'Azul-claro', 0xb0c8dc]] },
 };
+export const STOCK_MAX = 3; // presents an adult plant can keep waiting
 export const STAGE_NAMES = ['', 'Brotinho', 'Crescendo', 'Em botão', 'Em flor'];
 
 const QUESTS = [
@@ -70,12 +71,14 @@ const QUESTS = [
   { t: 'Complete o álbum de flores', goal: SPECIES_LIST.length, v: (s) => s.album.length, r: 1000 },
 ];
 
-const fresh = () => ({ v: 1, coins: 45, xp: 0, zones: [0], decor: [], upg: [], plants: {}, quest: 0, album: [], stats: { planted: 0, watered: 0, collected: 0, blooms: 0, orders: 0, weeds: 0, prunes: 0, fert: 0 }, hour: 8.6, last: Date.now(), t0: Date.now(), tips: {},
+const fresh = () => ({ v: 1, coins: 45, xp: 0, zones: [0], decor: [], upg: [], plants: {}, quest: 0, album: [], stats: { planted: 0, watered: 0, collected: 0, blooms: 0, orders: 0, weeds: 0, prunes: 0, fert: 0 }, hour: 8.6, pace: PACE_V, days: 0, dayKey: '', last: Date.now(), t0: Date.now(), tips: {},
   style: { own: [] }, items: [], stored: {}, basket: {}, orders: [], orderT: 0, adubo: 0, daily: { last: '', streak: 0, best: 0 }, weeds: {}, wilt: {}, ach: {}, log: [], hybrids: [], seen: [], seasonsSeen: [], rare: {}, paint: {}, outfit: {}, settings: { music: 0.6, sfx: 0.8, quality: 'auto', time: 'auto' } });
 
 // Turns whatever was stored (possibly by an older version of the game) into a complete, current state.
 export function normalize(raw) {
   const f = fresh(); if (!raw || raw.v !== 1) return f;
+  if (raw.pace == null) raw.pace = 1;
+  if (raw.days == null) { raw.days = Math.floor((Date.now() - (raw.t0 || Date.now())) / 86400000) + 1; raw.dayKey = ''; } // older saves counted calendar days
   const s = Object.assign(f, raw, { settings: Object.assign(fresh().settings, raw.settings), stats: Object.assign(fresh().stats, raw.stats), daily: Object.assign(fresh().daily, raw.daily) });
   for (const k of ['zones', 'decor', 'upg', 'album', 'orders', 'log', 'hybrids', 'seen', 'seasonsSeen', 'items']) if (!Array.isArray(s[k])) s[k] = fresh()[k];
   for (const k of ['plants', 'tips', 'basket', 'weeds', 'wilt', 'ach', 'rare', 'stored']) if (!s[k] || typeof s[k] !== 'object') s[k] = {};
@@ -182,7 +185,7 @@ export function createGame({ scene, world, fx, audio, gardener, nav, env, ui, st
   G.showCard = (spot) => {
     const p = S.plants[spot.id]; if (!p) return;
     ui.plantCard(spot, () => { const q = S.plants[spot.id]; if (!q) return null; const sp = SPECIES[q.sp];
-      return { sp, stage: stageOf(q), grow: clamp(q.grown / sp.grow, 0, 1), water: thirstOf(sp, spot) === 0 ? 1 : clamp(q.wet / waterMax(), 0, 1), noWater: thirstOf(sp, spot) === 0, green: spot.type === 'green', gift: q.grown >= sp.grow ? clamp(q.giftT / sp.every, 0, 1) : 0, ready: q.ready, left: Math.max(0, sp.grow - q.grown), adubo: S.adubo, inSeason: G.sys.inSeason(sp), weed: !!S.weeds[spot.id] }; },
+      return { sp, stage: stageOf(q), grow: clamp(q.grown / sp.grow, 0, 1), water: thirstOf(sp, spot) === 0 ? 1 : clamp(q.wet / waterMax(), 0, 1), noWater: thirstOf(sp, spot) === 0, green: spot.type === 'green', gift: q.grown >= sp.grow ? ((q.stock || 0) >= STOCK_MAX ? 1 : clamp(q.giftT / sp.every, 0, 1)) : 0, stock: q.stock || 0, ready: q.ready, left: Math.max(0, sp.grow - q.grown), adubo: S.adubo, inSeason: G.sys.inSeason(sp), weed: !!S.weeds[spot.id] }; },
     { water: () => pushAct('water', spot), remove: () => pushAct('remove', spot), fert: () => G.fertilize(spot) });
   };
   const fits = (s, spot) => s.spots.includes(spot.type) || (spot.type === 'green' && s.spots.includes('pot'));
@@ -269,8 +272,8 @@ export function createGame({ scene, world, fx, audio, gardener, nav, env, ui, st
     let total = 0;
     for (const id in S.rare) { const o = world.spots[id]; if (!o || o.pos.distanceTo(spot.pos) > Math.max(1.4, waterR()) + 0.01) continue; G.sys.takeRare && G.sys.takeRare(id); }
     for (const id in S.plants) { const o = world.spots[id], p = S.plants[id]; if (!p.ready || o.pos.distanceTo(spot.pos) > Math.max(1.4, waterR()) + 0.01) continue;
-      const sp = SPECIES[p.sp], amt = Math.round(sp.gift * G.sys.giftMul(sp)); p.ready = false; p.giftT = 0; total += amt; S.stats.collected++;
-      S.basket[p.sp] = Math.min(99, (S.basket[p.sp] || 0) + 1);
+      const sp = SPECIES[p.sp], n = Math.max(1, p.stock || 1), amt = Math.round(sp.gift * n * G.sys.giftMul(sp)); p.ready = false; p.stock = 0; total += amt; S.stats.collected += n;
+      S.basket[p.sp] = Math.min(99, (S.basket[p.sp] || 0) + n);
       const at = o.pos.clone(); at.y += V[id].h * 0.7 + 0.2; fx.sparkle(at, 12); ui.floatText(at, '+' + amt, 'coin'); G.sys.afterGift && G.sys.afterGift(id); }
     if (total) { S.coins += total; audio.sfx('coin', 0.6); addXp(Math.ceil(total / 3)); ui.hud(); checkQuest(); save(); }
   };
@@ -344,7 +347,7 @@ export function createGame({ scene, world, fx, audio, gardener, nav, env, ui, st
 
     // --- time, rain ---
     const mode = S.settings.time;
-    if (mode === 'auto') S.hour = (S.hour + dt * (S.hour > 6 && S.hour < 19 ? 13 / 540 : 11 / 150)) % 24;
+    if (mode === 'auto') S.hour = (S.hour + dt * (S.hour > 6 && S.hour < 19 ? 13 / 1800 : 11 / 480)) % 24; // a day lasts about half an hour, the night about eight minutes
     else if (mode !== 'fixo') { const tgt = { dia: 10, tarde: 17.3, noite: 22 }[mode]; let d = tgt - S.hour; if (d > 12) d -= 24; if (d < -12) d += 24; S.hour = (S.hour + d * Math.min(1, dt * 0.8) + 24) % 24; }
     G.rainT -= dt;
     if (G.rainT < 0 && G.rainT > -50) { if (!G.rainOn) { G.rainOn = true; if (G.count() > 0) ui.toast('Uma chuvinha! As plantas agradecem.', 'info'); } G.raining = Math.min(1, G.raining + dt * 0.3);
@@ -354,7 +357,7 @@ export function createGame({ scene, world, fx, audio, gardener, nav, env, ui, st
 
     // --- plants ---
     const sprink = has('sprinkler'), wm = waterMax();
-    const firstBoost = S.stats.blooms === 0 ? 8 : 1, giftBoost = S.stats.collected === 0 ? 12 : 1; // the very first flower and gift come quickly, to teach the loop
+    const firstBoost = S.stats.blooms === 0 ? 12 : 1, giftBoost = S.stats.collected === 0 ? 12 : 1; // the very first flower and gift come quickly, to teach the loop
     const targets = fx.butterflyTargets; targets.length = 0; let blooms = 0;
     for (const id in S.plants) {
       const p = S.plants[id], sp = SPECIES[p.sp], spot = world.spots[id], v = V[id];
@@ -362,7 +365,7 @@ export function createGame({ scene, world, fx, audio, gardener, nav, env, ui, st
       if (sprink) p.wet = wm;
       const hyd = th === 0 || p.wet > 0;
       if (th > 0) p.wet = Math.max(0, p.wet - dt * th);
-      if (hyd) { if (p.grown < sp.grow) p.grown = Math.min(sp.grow, p.grown + dt * firstBoost * G.sys.growMul(id, sp)); else if (!p.ready) { p.giftT += dt * giftBoost; if (p.giftT >= sp.every) { p.ready = true; audio.sfx('pop', 0.35, 1.3); } } }
+      if (hyd) { if (p.grown < sp.grow) p.grown = Math.min(sp.grow, p.grown + dt * firstBoost * G.sys.growMul(id, sp)); else if ((p.stock || 0) < STOCK_MAX) { p.giftT += dt * giftBoost; if (p.giftT >= sp.every) { p.giftT = 0; p.stock = (p.stock || 0) + 1; if (!p.ready) audio.sfx('pop', 0.35, 1.3); p.ready = true; } } }
       const st = stageOf(p);
       if (!v.mesh || st !== v.stage) {
         const first = v.mesh && st > v.stage; rebuild(spot);
@@ -401,13 +404,16 @@ export function createGame({ scene, world, fx, audio, gardener, nav, env, ui, st
   G.init = () => {
     for (const z of ZONES) world.setZone(z.id, S.zones.includes(z.id));
     for (const d of DECOR) world.setDecor(d.id, S.decor.includes(d.id));
+    // a garden saved under an older, faster pace: convert so every plant keeps exactly the stage it had
+    if ((S.pace || 1) < PACE_V) { const v = S.pace || 1; for (const id in S.plants) { const p = S.plants[id], sp = SPECIES[p.sp]; if (!sp || !sp.growOld[v]) continue; p.grown = Math.min(1, p.grown / sp.growOld[v]) * sp.grow; p.giftT = Math.min(1, (p.giftT || 0) / sp.everyOld[v]) * sp.every; p.wet = (p.wet || 0) * 2; } S.pace = PACE_V; }
     // offline progress (plants keep growing while they still had water)
     const away = clamp((Date.now() - (S.last || Date.now())) / 1000, 0, 48 * 3600);
     for (const id in S.plants) {
       const p = S.plants[id], sp = SPECIES[p.sp]; if (!sp || !world.spots[id]) { delete S.plants[id]; continue; }
       const th = thirstOf(sp, world.spots[id]), hydT = th === 0 || has('sprinkler') ? away : Math.min(away, p.wet / th), gm = G.sys.growMul(id, sp);
       const growT = Math.min(hydT, Math.max(0, sp.grow - p.grown) / gm); p.grown = Math.min(sp.grow, p.grown + growT * gm);
-      if (p.grown >= sp.grow) { if (!S.album.includes(p.sp)) S.album.push(p.sp); p.giftT += hydT - growT; if (p.giftT >= sp.every) { p.ready = true; p.giftT = sp.every; } }
+      if (p.grown >= sp.grow) { if (!S.album.includes(p.sp)) S.album.push(p.sp); const t = (p.giftT || 0) + Math.max(0, away - growT), made = Math.floor(t / sp.every);
+        p.stock = Math.min(STOCK_MAX, (p.stock || (p.ready ? 1 : 0)) + made); p.giftT = p.stock >= STOCK_MAX ? 0 : t - made * sp.every; if (p.stock > 0) { p.ready = true; if (made > 0) G.awayGifts = (G.awayGifts || 0) + 1; } }
       if (th > 0) p.wet = Math.max(0, p.wet - away * th);
       rebuild(world.spots[id]);
     }

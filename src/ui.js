@@ -12,7 +12,7 @@ const $ = (s) => document.querySelector(s);
 const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html !== undefined) e.innerHTML = html; return e; };
 const ICON = (n) => `<svg class="ic" aria-hidden="true"><use href="#i-${n}"/></svg>`;
 const SPOT_NAMES = { bed: 'canteiro', pot: 'vaso', hang: 'vaso suspenso', window: 'jardineira', pond: 'lago', tree: 'árvore', arch: 'arco', veg: 'horta', green: 'estufa' };
-const fmtTime = (s) => { if (s >= 3600) { const h = Math.floor(s / 3600), m = Math.round((s % 3600) / 60 / 5) * 5; return m >= 60 ? `${h + 1} h` : m ? `${h} h ${m}` : `${h} h`; } return s >= 60 ? `${Math.ceil(s / 60)} min` : `${Math.max(1, Math.ceil(s))} s`; };
+const fmtTime = (s) => { if (s >= 86400) { const d = Math.floor(s / 86400), h = Math.round((s % 86400) / 3600); return h >= 24 ? `${d + 1} d` : h ? `${d} d ${h} h` : `${d} d`; } if (s >= 3600) { const h = Math.floor(s / 3600), m = Math.round((s % 3600) / 60 / 5) * 5; return m >= 60 ? `${h + 1} h` : m ? `${h} h ${m}` : `${h} h`; } return s >= 60 ? `${Math.ceil(s / 60)} min` : `${Math.max(1, Math.ceil(s))} s`; };
 
 export function createUI({ project, thumbs, audio }) {
   const U = { game: null, open: null };
@@ -78,7 +78,7 @@ export function createUI({ project, thumbs, audio }) {
       card.innerHTML = `<img class="c-th" alt="" src="${thumbs[i.sp.id] || ''}"><div class="c-b"><div class="c-n"><b>${i.sp.name}</b><span>${st}</span></div>
         <div class="c-row">${ICON('leaf')}<div class="bar g"><i style="width:${Math.round(i.grow * 100)}%"></i></div><small>${i.stage === 4 ? 'adulta' : 'faltam ' + fmtTime(i.left)}</small></div>
         <div class="c-row">${ICON('drop')}<div class="bar w"><i style="width:${Math.round(i.water * 100)}%"></i></div><small>${i.green ? 'ar úmido da estufa' : i.noWater ? 'vive na água' : i.water <= 0 ? 'com sede!' : 'regada'}</small></div>
-        ${i.stage === 4 ? `<div class="c-row">${ICON('coin')}<div class="bar c"><i style="width:${Math.round((i.ready ? 1 : i.gift) * 100)}%"></i></div><small>próximo presente</small></div>` : ''}
+        ${i.stage === 4 ? `<div class="c-row">${ICON('coin')}<div class="bar c"><i style="width:${Math.round((i.ready ? 1 : i.gift) * 100)}%"></i></div><small>${i.stock > 1 ? i.stock + ' presentes' : 'próximo presente'}</small></div>` : ''}
         ${i.inSeason ? `<div class="c-note">${ICON('flower')}Está na estação dela: cresce e rende mais.</div>` : ''}
         <div class="c-act">${i.noWater ? '' : `<button class="btn" data-a="water">${ICON('drop')}Regar</button>`}${i.stage < 4 && i.adubo > 0 ? `<button class="btn honey" data-a="fert">Adubar (${i.adubo})</button>` : ''}<button class="btn ghost" data-a="remove">Retirar</button><button class="btn ghost" data-a="close">Fechar</button></div></div>`;
       card.querySelectorAll('button').forEach((b) => (b.onclick = () => { click(); const a = b.dataset.a;
@@ -132,7 +132,7 @@ export function createUI({ project, thumbs, audio }) {
     else if (tab === 'conq') { const done = ACH.filter((a) => S.ach[a.id]).length; count = `${done}/${ACH.length}`;
       const shown = ACH.filter((a, i) => S.ach[a.id] || !ACH.slice(0, i).some((b) => b.id.replace(/\d+$/, '') === a.id.replace(/\d+$/, '') && !S.ach[b.id]));
       body = `<div class="list">${shown.map((a) => { const v = Math.min(a.goal, a.v(S, G)), ok = !!S.ach[a.id]; return `<div class="item ach ${ok ? 'own' : ''}"><div class="a-ic">${ICON(ok ? 'trophy' : 'trophy-off')}</div><div class="a-b"><b>${a.name}</b><small>${a.desc}</small><div class="q-r"><div class="bar ${ok ? 'c' : ''}"><i style="width:${Math.round((v / a.goal) * 100)}%"></i></div><span>${v}/${a.goal}</span><b>${ICON('coin')}${a.r}</b></div></div></div>`; }).join('')}</div>`; }
-    else { count = `dia ${Math.floor((Date.now() - S.t0) / 86400000) + 1}`;
+    else { count = `dia ${Math.max(1, S.days || 1)}`;
       body = S.log.length ? `<div class="diary">${S.log.slice().reverse().map((e) => `<div><span>Dia ${e.d}</span>${e.t}</div>`).join('')}</div>` : '<p class="hint">O diário da Eliane se escreve sozinho, conforme o jardim cresce.</p>'; }
     openModal(`<div class="p-h"><h2>${tab === 'diario' ? 'Diário da Eliane' : 'Álbum do jardim'}</h2><span class="wallet">${count}</span><button class="x" data-close aria-label="Fechar">${ICON('x')}</button></div>
       <div class="tabs">${tabs.map(([k, t]) => `<button class="${tab === k ? 'on' : ''}" data-tab="${k}">${t}</button>`).join('')}</div>${body}`, 'wide');

@@ -53,7 +53,9 @@ export const DAILY = [
 export function attachSystems(G, { S, world, fx, audio, gardener, ui, addCoins, addXp, level, save }) {
   const sys = {};
   const rnd = (a, b) => a + Math.random() * (b - a), pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
-  const day = () => Math.floor((Date.now() - S.t0) / 86400000);
+  // the garden's calendar only moves on days she actually visits: time away never skips a season
+  const touchDay = () => { const k = dayKey(); if (S.dayKey !== k) { S.dayKey = k; S.days = (S.days || 0) + 1; } };
+  const day = () => Math.max(0, (S.days || 1) - 1);
 
   // ---------- seasons ----------
   const seasonOv = new URLSearchParams(location.search).get('season');
@@ -106,9 +108,9 @@ export function attachSystems(G, { S, world, fx, audio, gardener, ui, addCoins, 
     addCoins(o.coins); addXp(o.xp); audio.sfx('levelup', 0.7); gardener.play('cheer', 1.4);
     fx.burst(world.things.orders.pos, [0xffe680, 0xff9ab8, 0xffffff, 0xb8f0a0], 40, 1.4);
     ui.toast(`${o.who} adorou! +${o.coins} moedas${o.adubo ? ' e 1 adubo' : ''}`, 'good'); sys.log(`Entreguei flores para ${o.who}.`);
-    S.orderT = Math.min(S.orderT || Infinity, Date.now() + 5 * 60000); save(); return true;
+    S.orderT = Math.min(S.orderT || Infinity, Date.now() + 12 * 60000); save(); return true;
   };
-  sys.dismiss = (id) => { S.orders = S.orders.filter((x) => x.id !== id); S.orderT = Date.now() + 3 * 60000; save(); };
+  sys.dismiss = (id) => { S.orders = S.orders.filter((x) => x.id !== id); S.orderT = Date.now() + 8 * 60000; save(); };
 
   // ---------- daily surprise ----------
   sys.dailyReady = () => S.daily.last !== dayKey();
@@ -123,7 +125,7 @@ export function attachSystems(G, { S, world, fx, audio, gardener, ui, addCoins, 
   };
 
   // ---------- little care jobs ----------
-  let weedT = rnd(70, 130), wiltT = rnd(120, 200);
+  let weedT = rnd(240, 420), wiltT = rnd(420, 700);
   const count = (o) => Object.keys(o).length;
   const spawnWeed = () => { const c = Object.keys(S.plants).filter((id) => !S.weeds[id] && ['bed', 'pot', 'tree', 'veg'].includes(world.spots[id].type)); if (c.length && count(S.weeds) < 4) S.weeds[pick(c)] = 1; };
   const spawnWilt = () => { const c = Object.keys(S.plants).filter((id) => { const p = S.plants[id], sp = SPECIES[p.sp]; return !S.wilt[id] && !p.ready && p.grown >= sp.grow && !sp.tree && !sp.foliage && world.spots[id].type !== 'pond'; }); if (c.length && count(S.wilt) < 3) S.wilt[pick(c)] = 1; };
@@ -134,13 +136,14 @@ export function attachSystems(G, { S, world, fx, audio, gardener, ui, addCoins, 
 
   sys.tick = (dt) => {
     // orders trickle in
-    if (S.stats.collected > 0 && S.orders.length < 3 && Date.now() >= (S.orderT || 0)) { const o = genOrder(); if (o) { S.orders.push(o); if (S.orders.length === 1 && !S.tips.order) { S.tips.order = 1; ui.toast('Chegou um pedido na banquinha de flores!', 'info'); } } S.orderT = Date.now() + 12 * 60000; }
-    weedT -= dt; if (weedT < 0) { weedT = rnd(150, 260); spawnWeed(); }
-    wiltT -= dt; if (wiltT < 0) { wiltT = rnd(200, 320); spawnWilt(); }
-    achT -= dt; if (achT < 0) { achT = 1.5; checkAch(); }
+    if (S.stats.collected > 0 && S.orders.length < 3 && Date.now() >= (S.orderT || 0)) { const o = genOrder(); if (o) { S.orders.push(o); if (S.orders.length === 1 && !S.tips.order) { S.tips.order = 1; ui.toast('Chegou um pedido na banquinha de flores!', 'info'); } } S.orderT = Date.now() + 30 * 60000; }
+    weedT -= dt; if (weedT < 0) { weedT = rnd(420, 720); spawnWeed(); }
+    wiltT -= dt; if (wiltT < 0) { wiltT = rnd(600, 960); spawnWilt(); }
+    achT -= dt; if (achT < 0) { achT = 1.5; checkAch(); touchDay(); }
     const se = sys.season(); if (!S.seasonsSeen.includes(se.id)) { S.seasonsSeen.push(se.id); if (S.seasonsSeen.length > 1) { ui.toast(`Chegou ${se.id === 1 ? 'o' : se.id === 2 ? 'o' : se.id === 3 ? 'o' : 'a'} ${se.name.toLowerCase()}! ${se.line}`, 'good'); sys.log(`Começou ${se.name.toLowerCase()}.`); } }
   };
   sys.init = (away) => {
+    touchDay();
     for (const id in S.weeds) if (!S.plants[id]) delete S.weeds[id];
     for (const id in S.wilt) if (!S.plants[id]) delete S.wilt[id];
     for (let i = 0; i < (away > 8 * 3600 ? 3 : away > 3 * 3600 ? 2 : away > 1800 ? 1 : 0); i++) spawnWeed();
