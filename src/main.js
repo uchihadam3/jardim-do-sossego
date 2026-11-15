@@ -132,7 +132,9 @@ async function boot() {
   const elianePick = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 1.75, 8), new THREE.MeshBasicMaterial({ visible: false })); elianePick.position.y = 0.875; gardener.group.add(elianePick);
   const pickAt = (cx, cy) => {
     const r = canvas.getBoundingClientRect(); ndc.set(((cx - r.left) / r.width) * 2 - 1, -((cy - r.top) / r.height) * 2 + 1); ray.setFromCamera(ndc, camera);
-    const hits = ray.intersectObjects(world.pickables.filter((m) => m.visible || !state.zones.includes(m.userData.spot.zone)), false);
+    const sg = ray.intersectObjects(world.signPicks.filter((m) => !state.zones.includes(m.userData.zoneSign)), false);
+    if (sg.length) return { sign: sg[0].object.userData.zoneSign };
+    const hits = ray.intersectObjects(world.pickables.filter((m) => m.visible), false);
     const ih = ray.intersectObjects(world.items.map((it) => it.pick), false);
     if (ih.length && (!hits.length || ih[0].distance < hits[0].distance)) return { item: ih[0].object.userData.item };
     const th = ray.intersectObjects(Object.values(world.things).map((t) => t.pick), false);
@@ -146,7 +148,7 @@ async function boot() {
   canvas.addEventListener('pointerdown', (e) => { canvas.setPointerCapture(e.pointerId); ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY }); if (ptrs.size === 1) { downAt = performance.now(); moved = 0; } else if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; pinch0 = Math.hypot(a.x - b.x, a.y - b.y); dist0 = cam.dist; moved = 99; } });
   canvas.addEventListener('pointermove', (e) => {
     const p = ptrs.get(e.pointerId);
-    if (!p) { if (e.pointerType === 'mouse' && started) { const h = pickAt(e.clientX, e.clientY); canvas.style.cursor = h.spot || h.thing || h.item ? 'pointer' : 'grab'; } return; }
+    if (!p) { if (e.pointerType === 'mouse' && started) { const h = pickAt(e.clientX, e.clientY); canvas.style.cursor = h.spot || h.thing || h.item || h.sign != null ? 'pointer' : 'grab'; } return; }
     const dx = e.clientX - p.x, dy = e.clientY - p.y; p.x = e.clientX; p.y = e.clientY;
     if (ptrs.size === 1) { moved += Math.abs(dx) + Math.abs(dy); if (moved > 8) { cam.yaw -= dx * 0.006; cam.pitch = clamp(cam.pitch + dy * 0.004, 0.16, 1.3); } }
     else if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; const d = Math.hypot(a.x - b.x, a.y - b.y); if (pinch0 > 0) cam.dist = clamp(dist0 * (pinch0 / d), 3.5, 34); }
@@ -158,14 +160,14 @@ async function boot() {
       if (ui.open === 'modal') return;
       if (game.placing) { const r = canvas.getBoundingClientRect(); ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1); ray.setFromCamera(ndc, camera); if (ray.ray.intersectPlane(plane, hit)) game.deco.move(hit.x, hit.z); return; }
       const h = pickAt(e.clientX, e.clientY);
-      if (h.item) game.tapItem(h.item);
+      if (h.sign != null) game.offerZone(h.sign);
+      else if (h.item) game.tapItem(h.item);
       else if (h.thing) game.tapThing(h.thing);
       else if (h.spot) game.tapSpot(h.spot);
       else if (h.ground) {
         const g = h.ground, zn = zoneAt(g.x, g.z);
         if (ui.open) { ui.closeCards(); return; }
-        if (zn > 0 && !state.zones.includes(zn)) game.offerZone(zn);
-        else if (Math.abs(g.x) < 12.4 && g.z > -9 && g.z < 14.5) { game.tapGround(g.x, g.z); fx.sparkle(new V3(g.x, 0.05, g.z), 4, 0xffffff, 0.12); }
+        if (Math.abs(g.x) < 12.4 && g.z > -9 && g.z < 14.5) { game.tapGround(g.x, g.z); fx.sparkle(new V3(g.x, 0.05, g.z), 4, 0xffffff, 0.12); }
       }
     }
   };
@@ -207,6 +209,6 @@ async function boot() {
     if (++ready === 3) { document.title = document.title; window.__ready = true; }
   };
   requestAnimationFrame(frame);
-  window.__game = { game, state, cam, gardener, world, env, ui, start, setQ, fx };
+  window.__game = { game, state, cam, gardener, world, env, ui, start, setQ, fx, project, SPECIES_LIST, buildPlantGeometry };
 }
 boot().catch((e) => { console.error(e); const m = document.querySelector('#err'); if (m) { m.hidden = false; m.textContent = 'Não foi possível abrir o jardim neste aparelho: ' + e.message; } });

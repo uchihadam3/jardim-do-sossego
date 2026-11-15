@@ -269,6 +269,9 @@ export function createWorld(scene, q, unlocked) {
       if (zn.id === 1) { ls.box(0.7, 0.36, 0.05, tx, 1.75, -4.92, 0xb89068); ls.cyl(0.01, 0.01, 0.4, tx - 0.28, 2.05, -4.92, 0x555555, 4); ls.cyl(0.01, 0.01, 0.4, tx + 0.28, 2.05, -4.92, 0x555555, 4); }
       else { ls.box(0.09, 1.25, 0.09, tx, 0.62, tz, 0x7a5a40); ls.box(0.95, 0.5, 0.06, tx, 1.25, tz + 0.06, 0xc49a6c, RZ(0.04)); ls.box(0.8, 0.07, 0.065, tx, 1.33, tz + 0.07, 0x8a6648, RZ(0.04)); ls.box(0.6, 0.07, 0.065, tx - 0.08, 1.17, tz + 0.07, 0x8a6648, RZ(0.04)); }
       lg.add(ls.mesh(propMat)); scene.add(lg); world.lockGroups[zn.id] = lg;
+      // only the sign itself opens the offer to buy the area
+      const sp = new THREE.Mesh(zn.id === 1 ? new THREE.BoxGeometry(1.0, 0.8, 0.5) : new THREE.CylinderGeometry(0.62, 0.62, 1.7, 8), new THREE.MeshBasicMaterial({ visible: false }));
+      sp.position.set(tx, zn.id === 1 ? 1.8 : 0.85, zn.id === 1 ? -4.9 : tz); sp.userData.zoneSign = zn.id; lg.add(sp); (world.signPicks ??= []).push(sp);
     }
   }
 

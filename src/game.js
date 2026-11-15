@@ -150,8 +150,8 @@ export function createGame({ scene, world, fx, audio, gardener, nav, env, ui, st
   const walkTo = (x, z) => { const p = gardener.group.position; return nav.path(p.x, p.z, x, z); };
   const pushAct = (kind, spot, extra = {}) => {
     if (G.tasks.some((t) => t.kind === kind && t.spot === spot) || (G.cur && G.cur.kind === kind && G.cur.spot === spot)) return;
-    if (G.tasks.length >= 8) return;
-    G.tasks.push({ kind, spot, ...extra });
+    if (G.tasks.length >= 30) return false;
+    G.tasks.push({ kind, spot, ...extra }); return true;
   };
   const cancelAll = () => { for (const t of G.tasks) if (t.kind === 'plant') { S.coins += SPECIES[t.sp].price; t.spot.pending = null; } G.tasks.length = 0; ui.hud(); };
 
@@ -188,6 +188,7 @@ export function createGame({ scene, world, fx, audio, gardener, nav, env, ui, st
     if (outOfSeason(sp, spot)) { audio.sfx('error'); ui.toast(`${sp.name} só nasce ${['na primavera', 'no verão', 'no outono', 'no inverno'][sp.season]} (ou na estufa)`, 'warn'); return false; }
     if (S.coins < sp.price) { audio.sfx('error'); ui.toast('Faltam moedas. Recolha os presentes das flores!', 'warn'); return false; }
     if (S.plants[spot.id] || spot.pending) return false;
+    if (G.tasks.length >= 26) { audio.sfx('error'); ui.toast('A Eliane já tem bastante coisa para fazer. Espere ela terminar um pouquinho.', 'info'); return false; } // never charge for a seed she cannot queue
     S.coins -= sp.price; spot.pending = id; ui.hud(); audio.sfx('buy', 0.7);
     pushAct('plant', spot, { sp: id });
     if (thirstOf(sp, spot) !== 0 && !has('sprinkler')) pushAct('water', spot);
