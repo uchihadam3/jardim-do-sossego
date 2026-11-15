@@ -1,0 +1,44 @@
+// drives a short play session headlessly and takes screenshots
+import { createRequire } from 'module'; const { chromium } = createRequire(import.meta.url)('playwright');
+const SP = process.argv[2], q = process.argv[3] || 'baixa', W = +(process.argv[4] || 1280), H = +(process.argv[5] || 800);
+const b = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
+const p = await b.newPage({ viewport: { width: W, height: H } });
+p.on('console', (m) => { if (m.type() === 'error' || m.type() === 'warning') console.log('[' + m.type() + ']', m.text().slice(0, 300)); });
+p.on('pageerror', (e) => console.log('[pageerror]', e.message, (e.stack || '').split('\n').slice(0, 5).join(' | ')));
+await p.goto(`http://localhost:8765/local.html?q=${q}&speed=${process.argv[6] || 1}`);
+await p.waitForFunction(() => window.__ready, null, { timeout: 180000 });
+await p.screenshot({ path: SP + '/p0_title.png' });
+await p.click('#start');
+await p.waitForTimeout(4000);
+await p.screenshot({ path: SP + '/p1_start.png' });
+const log = async (label) => console.log(label, JSON.stringify(await p.evaluate(() => { const g = window.__game; return { coins: g.state.coins, xp: g.state.xp, plants: Object.keys(g.state.plants).length, quest: g.state.quest, tasks: g.game.tasks.length, cur: g.game.cur && g.game.cur.kind + ':' + g.game.cur.phase, pos: [g.gardener.group.position.x.toFixed(1), g.gardener.group.position.z.toFixed(1)], fps: (1 / (window.__dt || 1)).toFixed(1) }; })));
+await p.evaluate(() => { const g = window.__game; g.game.tapSpot(g.world.spots[1]); });
+await p.waitForTimeout(800);
+await p.screenshot({ path: SP + '/p2_picker.png' });
+await p.click('.seed:not(.locked)');
+await log('after choose');
+for (let i = 0; i < 14; i++) { await p.waitForTimeout(1500); const cur = await p.evaluate(() => window.__game.game.cur); if (!cur && i > 2) break; }
+await log('after plant+water');
+await p.screenshot({ path: SP + '/p3_planted.png' });
+// fast-forward growth
+await p.evaluate(() => { const g = window.__game; for (const id of [0, 2, 3, 4, 5]) { g.game.state.plants[id] = { sp: ['tulipa_vermelha', 'margarida', 'tagetes', 'margarida', 'tulipa_vermelha'][id % 5], seed: id + 3, grown: 0, wet: 300, giftT: 0, ready: false }; } for (const id in g.state.plants) { g.state.plants[id].grown = 49; g.state.plants[id].wet = 300; } });
+await p.waitForTimeout(9000);
+await log('after grow');
+await p.screenshot({ path: SP + '/p4_bloom.png' });
+await p.evaluate(() => { const g = window.__game; for (const id in g.state.plants) { g.state.plants[id].giftT = 79.5; g.state.plants[id].grown = 9999; } });
+await p.waitForTimeout(2500);
+await p.evaluate(() => { const g = window.__game; g.game.tapSpot(g.world.spots[1]); });
+await p.waitForTimeout(9000);
+await log('after collect');
+await p.screenshot({ path: SP + '/p5_collect.png' });
+await p.evaluate(() => { const g = window.__game; g.state.coins = 5000; g.game.offerZone(1); });
+await p.waitForTimeout(700); await p.screenshot({ path: SP + '/p6_offer.png' });
+await p.click('#buyz'); await p.waitForTimeout(3000); await p.screenshot({ path: SP + '/p6b_unlocked.png' }); await p.evaluate(() => window.__game.ui.closeModal());
+await p.click('#b-shop'); await p.waitForTimeout(600); await p.screenshot({ path: SP + '/p7_shop.png' });
+await p.click('[data-buy]'); await p.waitForTimeout(500); await p.evaluate(() => window.__game.ui.closeModal()); await p.waitForTimeout(1500); await p.evaluate(() => window.__game.ui.closeModal());
+await p.click('#b-album'); await p.waitForTimeout(600); await p.screenshot({ path: SP + '/p8_album.png' }); await p.evaluate(() => window.__game.ui.closeModal());
+await p.click('#b-set'); await p.waitForTimeout(600); await p.screenshot({ path: SP + '/p9_settings.png' }); await p.evaluate(() => window.__game.ui.closeModal());
+await p.evaluate(() => { const g = window.__game; g.game.tapSpot(g.world.spots[2]); });
+await p.waitForTimeout(900); await p.screenshot({ path: SP + '/p10_card.png' });
+await log('end');
+await b.close();
