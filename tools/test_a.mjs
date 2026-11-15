@@ -1,0 +1,27 @@
+import { createRequire } from 'module'; const { chromium } = createRequire(import.meta.url)('playwright');
+const SP = process.argv[2];
+const b = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
+const p = await b.newPage({ viewport: { width: 1280, height: 800 } });
+p.on('console', (m) => { if (m.type() === 'error') console.log('[error]', m.text().slice(0, 300)); });
+p.on('pageerror', (e) => console.log('[pageerror]', e.message, (e.stack || '').split('\n').slice(0, 4).join(' | ')));
+await p.goto('http://localhost:8765/local.html?q=baixa&nointro=1&speed=3');
+await p.waitForFunction(() => window.__ready, null, { timeout: 240000 });
+await p.click('#start'); await p.waitForTimeout(3000);
+await p.evaluate(() => { const g = window.__game, S = g.state; const ids = ['margarida', 'tulipa_vermelha', 'tagetes', 'margarida', 'tulipa_vermelha', 'margarida'];
+  ids.forEach((sp, i) => { S.plants[i] = { sp, seed: i + 3, grown: 99999, wet: 5000, giftT: 0, ready: i < 2 }; });
+  S.stats.blooms = 6; S.stats.collected = 3; S.stats.planted = 6; S.basket = { margarida: 4, tulipa_vermelha: 1, tagetes: 2 }; S.adubo = 2; S.weeds[3] = 1; S.wilt[4] = 1; S.xp = 200; S.orderT = 0; g.cam.dist = 9; g.cam.pitch = 0.6; });
+await p.waitForTimeout(6000);
+await p.screenshot({ path: SP + '/a1_world.png' });
+console.log('orders', await p.evaluate(() => JSON.stringify(window.__game.state.orders.map((o) => [o.who, o.items, o.coins]))));
+await p.evaluate(() => window.__game.game.tapThing('orders')); await p.waitForTimeout(700); await p.screenshot({ path: SP + '/a2_orders.png' });
+const can = await p.$('[data-go]:not([disabled])'); if (can) { await can.click(); await p.waitForTimeout(800); console.log('delivered', await p.evaluate(() => window.__game.state.stats.orders)); }
+await p.evaluate(() => window.__game.ui.closeModal());
+await p.evaluate(() => window.__game.game.tapThing('mail')); await p.waitForTimeout(600); await p.screenshot({ path: SP + '/a3_daily.png' });
+await p.click('#d-open'); await p.waitForTimeout(700); await p.screenshot({ path: SP + '/a3b_daily.png' }); await p.evaluate(() => window.__game.ui.closeModal());
+await p.evaluate(() => { const g = window.__game; g.game.tapSpot(g.world.spots[3]); g.game.tapSpot(g.world.spots[4]); g.game.tapSpot(g.world.spots[0]); });
+await p.waitForTimeout(30000);
+console.log('after care', await p.evaluate(() => { const S = window.__game.state; return JSON.stringify({ weeds: S.weeds, wilt: S.wilt, stats: S.stats, basket: S.basket, coins: S.coins, ach: Object.keys(S.ach), log: S.log.length }); }));
+await p.evaluate(() => window.__game.ui.album('conq')); await p.waitForTimeout(600); await p.screenshot({ path: SP + '/a4_conq.png' });
+await p.evaluate(() => window.__game.ui.album('diario')); await p.waitForTimeout(600); await p.screenshot({ path: SP + '/a5_diario.png' }); await p.evaluate(() => window.__game.ui.closeModal());
+await p.evaluate(() => { const g = window.__game; g.state.plants[5].grown = 100; g.state.plants[5].ready = false; g.game.tapSpot(g.world.spots[5]); }); await p.waitForTimeout(1500); await p.screenshot({ path: SP + '/a6_card.png' });
+await b.close();

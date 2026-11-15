@@ -107,6 +107,8 @@ async function boot() {
   const pickAt = (cx, cy) => {
     const r = canvas.getBoundingClientRect(); ndc.set(((cx - r.left) / r.width) * 2 - 1, -((cy - r.top) / r.height) * 2 + 1); ray.setFromCamera(ndc, camera);
     const hits = ray.intersectObjects(world.pickables.filter((m) => m.visible || !state.zones.includes(m.userData.spot.zone)), false);
+    const th = ray.intersectObjects(Object.values(world.things).map((t) => t.pick), false);
+    if (th.length && (!hits.length || th[0].distance < hits[0].distance)) return { thing: th[0].object.userData.thing };
     if (hits.length) return { spot: hits[0].object.userData.spot };
     if (ray.ray.intersectPlane(plane, hit)) return { ground: hit.clone() };
     return {};
@@ -114,7 +116,7 @@ async function boot() {
   canvas.addEventListener('pointerdown', (e) => { canvas.setPointerCapture(e.pointerId); ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY }); if (ptrs.size === 1) { downAt = performance.now(); moved = 0; } else if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; pinch0 = Math.hypot(a.x - b.x, a.y - b.y); dist0 = cam.dist; moved = 99; } });
   canvas.addEventListener('pointermove', (e) => {
     const p = ptrs.get(e.pointerId);
-    if (!p) { if (e.pointerType === 'mouse' && started) { const h = pickAt(e.clientX, e.clientY); canvas.style.cursor = h.spot ? 'pointer' : 'grab'; } return; }
+    if (!p) { if (e.pointerType === 'mouse' && started) { const h = pickAt(e.clientX, e.clientY); canvas.style.cursor = h.spot || h.thing ? 'pointer' : 'grab'; } return; }
     const dx = e.clientX - p.x, dy = e.clientY - p.y; p.x = e.clientX; p.y = e.clientY;
     if (ptrs.size === 1) { moved += Math.abs(dx) + Math.abs(dy); if (moved > 8) { cam.yaw -= dx * 0.006; cam.pitch = clamp(cam.pitch + dy * 0.004, 0.16, 1.3); } }
     else if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; const d = Math.hypot(a.x - b.x, a.y - b.y); if (pinch0 > 0) cam.dist = clamp(dist0 * (pinch0 / d), 3.5, 34); }
@@ -125,7 +127,8 @@ async function boot() {
       if (document.body.classList.contains('photo')) return;
       if (ui.open === 'modal') return;
       const h = pickAt(e.clientX, e.clientY);
-      if (h.spot) game.tapSpot(h.spot);
+      if (h.thing) game.tapThing(h.thing);
+      else if (h.spot) game.tapSpot(h.spot);
       else if (h.ground) {
         const g = h.ground, zn = zoneAt(g.x, g.z);
         if (ui.open) { ui.closeCards(); return; }

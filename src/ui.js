@@ -1,6 +1,8 @@
 import { SPECIES_LIST } from './species.js';
 import { DECOR } from './world.js';
 import { UPGRADES, STAGE_NAMES, LV } from './game.js';
+import { SPECIES } from './species.js';
+import { ACH, DAILY } from './systems.js';
 
 const $ = (s) => document.querySelector(s);
 const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html !== undefined) e.innerHTML = html; return e; };
@@ -21,6 +23,7 @@ export function createUI({ project, thumbs, audio }) {
     lastCoins = S.coins; hudCoins.textContent = S.coins; hudLvl.textContent = l;
     const a = LV[l - 1] ?? 0, b = LV[l] ?? a + 1; hudBar.style.width = Math.round(Math.min(1, (S.xp - a) / (b - a)) * 100) + '%';
     hudBeauty.textContent = G.beauty();
+    const se = G.sys.season(), sp = $('#season'); if (sp.dataset.k !== se.id + ':' + se.day) { sp.dataset.k = se.id + ':' + se.day; sp.innerHTML = `${ICON(se.icon)}<span>${se.name}</span>`; sp.title = `${se.name}, dia ${se.day} de ${se.of}`; }
     if (U.open === 'picker') refreshPicker();
   };
   U.toast = (text, kind = 'info') => {
@@ -71,9 +74,11 @@ export function createUI({ project, thumbs, audio }) {
         <div class="c-row">${ICON('leaf')}<div class="bar g"><i style="width:${Math.round(i.grow * 100)}%"></i></div><small>${i.stage === 4 ? 'adulta' : 'faltam ' + fmtTime(i.left)}</small></div>
         <div class="c-row">${ICON('drop')}<div class="bar w"><i style="width:${Math.round(i.water * 100)}%"></i></div><small>${i.noWater ? 'vive na água' : i.water <= 0 ? 'com sede!' : 'regada'}</small></div>
         ${i.stage === 4 ? `<div class="c-row">${ICON('coin')}<div class="bar c"><i style="width:${Math.round((i.ready ? 1 : i.gift) * 100)}%"></i></div><small>próximo presente</small></div>` : ''}
-        <div class="c-act">${i.noWater ? '' : `<button class="btn" data-a="water">${ICON('drop')}Regar</button>`}<button class="btn ghost" data-a="remove">Retirar</button><button class="btn ghost" data-a="close">Fechar</button></div></div>`;
+        ${i.inSeason ? `<div class="c-note">${ICON('flower')}Está na estação dela: cresce e rende mais.</div>` : ''}
+        <div class="c-act">${i.noWater ? '' : `<button class="btn" data-a="water">${ICON('drop')}Regar</button>`}${i.stage < 4 && i.adubo > 0 ? `<button class="btn honey" data-a="fert">Adubar (${i.adubo})</button>` : ''}<button class="btn ghost" data-a="remove">Retirar</button><button class="btn ghost" data-a="close">Fechar</button></div></div>`;
       card.querySelectorAll('button').forEach((b) => (b.onclick = () => { click(); const a = b.dataset.a;
         if (a === 'remove') { if (b.dataset.sure) { act.remove(); U.closeCards(); } else { b.dataset.sure = 1; b.textContent = 'Tem certeza?'; b.classList.add('danger'); cardUpd = null; } }
+        else if (a === 'fert') { act.fert(); draw(); }
         else { if (a === 'water') act.water(); U.closeCards(); } }));
     };
     draw(); cardUpd = draw; card.classList.add('on');
@@ -106,11 +111,51 @@ export function createUI({ project, thumbs, audio }) {
     modal.querySelectorAll('[data-tab]').forEach((b) => (b.onclick = () => { click(); shop(b.dataset.tab); }));
     modal.querySelectorAll('[data-buy]').forEach((b) => (b.onclick = () => { const [k, id] = b.dataset.buy.split(':'); if (k === 'd') G.buyDecor(id); else G.buyUpgrade(id); shop(tab); }));
   };
-  const album = () => {
-    const S = U.game.state, lvl = U.game.level();
-    const cells = SPECIES_LIST.map((s) => { const got = S.album.includes(s.id); return `<div class="alb ${got ? 'got' : ''}"><img alt="" src="${thumbs[s.id] || ''}"><b>${got ? s.name : s.lvl > lvl ? 'Nível ' + s.lvl : s.name}</b></div>`; }).join('');
-    openModal(`<div class="p-h"><h2>Álbum de flores</h2><span class="wallet">${S.album.length}/${SPECIES_LIST.length}</span><button class="x" data-close aria-label="Fechar">${ICON('x')}</button></div><p class="hint">Cada espécie entra no álbum quando floresce pela primeira vez.</p><div class="albgrid">${cells}</div>`, 'wide');
+  const album = (tab = 'flores') => {
+    const G = U.game, S = G.state, lvl = G.level();
+    const tabs = [['flores', 'Flores'], ['raras', 'Raridades'], ['bichos', 'Visitantes'], ['conq', 'Conquistas'], ['diario', 'Diário']].filter(([k]) => (k !== 'raras' || U.rareTab) && (k !== 'bichos' || U.critterTab));
+    let body = '', count = '';
+    if (tab === 'flores') { const list = SPECIES_LIST.filter((s) => !s.hybrid); count = `${list.filter((s) => S.album.includes(s.id)).length}/${list.length}`;
+      body = `<p class="hint">Cada espécie entra no álbum quando floresce pela primeira vez.</p><div class="albgrid">${list.map((s) => { const got = S.album.includes(s.id); return `<div class="alb ${got ? 'got' : ''}"><img alt="" src="${thumbs[s.id] || ''}"><b>${got ? s.name : s.lvl > lvl ? 'Nível ' + s.lvl : s.name}</b>${s.season != null ? `<em>${['primavera', 'verão', 'outono', 'inverno'][s.season]}</em>` : ''}</div>`; }).join('')}</div>`; }
+    else if (tab === 'raras' && U.rareTab) { const r = U.rareTab(); count = r.count; body = r.html; }
+    else if (tab === 'bichos' && U.critterTab) { const r = U.critterTab(); count = r.count; body = r.html; }
+    else if (tab === 'conq') { const done = ACH.filter((a) => S.ach[a.id]).length; count = `${done}/${ACH.length}`;
+      const shown = ACH.filter((a, i) => S.ach[a.id] || !ACH.slice(0, i).some((b) => b.id.replace(/\d+$/, '') === a.id.replace(/\d+$/, '') && !S.ach[b.id]));
+      body = `<div class="list">${shown.map((a) => { const v = Math.min(a.goal, a.v(S, G)), ok = !!S.ach[a.id]; return `<div class="item ach ${ok ? 'own' : ''}"><div class="a-ic">${ICON(ok ? 'trophy' : 'trophy-off')}</div><div class="a-b"><b>${a.name}</b><small>${a.desc}</small><div class="q-r"><div class="bar ${ok ? 'c' : ''}"><i style="width:${Math.round((v / a.goal) * 100)}%"></i></div><span>${v}/${a.goal}</span><b>${ICON('coin')}${a.r}</b></div></div></div>`; }).join('')}</div>`; }
+    else { count = `dia ${Math.floor((Date.now() - S.t0) / 86400000) + 1}`;
+      body = S.log.length ? `<div class="diary">${S.log.slice().reverse().map((e) => `<div><span>Dia ${e.d}</span>${e.t}</div>`).join('')}</div>` : '<p class="hint">O diário da Eliane se escreve sozinho, conforme o jardim cresce.</p>'; }
+    openModal(`<div class="p-h"><h2>${tab === 'diario' ? 'Diário da Eliane' : 'Álbum do jardim'}</h2><span class="wallet">${count}</span><button class="x" data-close aria-label="Fechar">${ICON('x')}</button></div>
+      <div class="tabs">${tabs.map(([k, t]) => `<button class="${tab === k ? 'on' : ''}" data-tab="${k}">${t}</button>`).join('')}</div>${body}`, 'wide');
+    modal.querySelectorAll('[data-tab]').forEach((b) => (b.onclick = () => { click(); album(b.dataset.tab); }));
   };
+  U.album = album;
+
+  // ---------- flower stall: neighbours' orders ----------
+  U.orders = () => {
+    const G = U.game, S = G.state, sys = G.sys;
+    const chips = Object.keys(S.basket).filter((k) => S.basket[k] > 0 && SPECIES[k]).sort((a, b) => S.basket[b] - S.basket[a]);
+    const cards = S.orders.map((o) => { const ok = sys.canDeliver(o);
+      return `<div class="order ${ok ? 'ok' : ''}"><div class="o-h"><b>${o.who}</b><span>${o.why}</span></div>
+        <div class="o-items">${o.items.map((it) => { const have = Math.min(it.n, S.basket[it.sp] || 0); return `<div class="o-it ${have >= it.n ? 'full' : ''}"><img alt="" src="${thumbs[it.sp] || ''}"><b>${have}/${it.n}</b><small>${SPECIES[it.sp].name}</small></div>`; }).join('')}</div>
+        <div class="o-f"><span class="rew">${ICON('coin')}${o.coins}${o.adubo ? ` <i>+ ${o.adubo} adubo</i>` : ''}</span><button class="btn ghost" data-no="${o.id}">Dispensar</button><button class="btn" data-go="${o.id}" ${ok ? '' : 'disabled'}>Entregar</button></div></div>`; }).join('');
+    openModal(`<div class="p-h"><h2>Banquinha de flores</h2><button class="x" data-close aria-label="Fechar">${ICON('x')}</button></div>
+      <p>Cada presente recolhido põe uma flor na cesta. Junte as que os vizinhos pedem e entregue.</p>
+      ${cards ? `<div class="orders">${cards}</div>` : `<p class="hint empty">${S.stats.collected ? 'Nenhum pedido agora. Os vizinhos passam por aqui de tempos em tempos.' : 'Recolha o primeiro presente de uma flor e os vizinhos começam a aparecer.'}</p>`}
+      <div class="basket"><b>Sua cesta</b>${chips.length ? chips.map((k) => `<span class="chip"><img alt="" src="${thumbs[k] || ''}">${S.basket[k]}</span>`).join('') : '<small>vazia por enquanto</small>'}<span class="chip adubo" title="Adubo">${ICON('leaf')}${S.adubo} adubo</span></div>`);
+    modal.querySelectorAll('[data-go]').forEach((b) => (b.onclick = () => { if (sys.deliver(+b.dataset.go)) { U.hud(); U.orders(); } }));
+    modal.querySelectorAll('[data-no]').forEach((b) => (b.onclick = () => { click(); if (b.dataset.sure) { sys.dismiss(+b.dataset.no); U.orders(); } else { b.dataset.sure = 1; b.textContent = 'Dispensar mesmo?'; } }));
+  };
+  // ---------- mailbox: the daily surprise ----------
+  U.daily = () => {
+    const G = U.game, S = G.state, sys = G.sys, ready = sys.dailyReady();
+    const cur = ready ? (S.daily.streak % 7) : ((S.daily.streak - 1) % 7);
+    const strip = DAILY.map((r, i) => `<div class="day ${i < cur || (!ready && i === cur) ? 'done' : ''} ${ready && i === cur ? 'now' : ''} ${r.big ? 'big' : ''}"><small>Dia ${i + 1}</small>${r.coins ? ICON('coin') : ICON('leaf')}<b>${r.coins ? '×' + Math.round(r.coins * (1 + G.level() * 0.2)) : r.adubo + ' adubo'}</b></div>`).join('');
+    openModal(`<h2>Caixa de correio</h2><p>${ready ? 'Tem uma surpresa esperando por você hoje!' : 'A surpresa de hoje já foi aberta. Amanhã tem mais.'}</p><div class="days">${strip}</div>
+      <p class="hint">Você já abriu ${S.daily.streak} ${S.daily.streak === 1 ? 'surpresa' : 'surpresas'}. A cada sete visitas vem um presente grande, sem pressa.</p>
+      <div class="row"><button class="btn ghost" data-close>${ready ? 'Depois' : 'Fechar'}</button>${ready ? '<button class="btn big" id="d-open">Abrir a surpresa</button>' : ''}</div>`, 'small center');
+    const b = $('#d-open'); if (b) b.onclick = () => { const r = sys.claimDaily(); if (r) { U.toast(`Surpresa do dia ${r.streak}: ${r.coins ? '+' + r.coins + ' moedas' : ''}${r.coins && r.adubo ? ' e ' : ''}${r.adubo ? '+' + r.adubo + ' adubo' : ''}`, 'good'); U.hud(); U.daily(); } };
+  };
+  U.achievement = (a) => { const t = el('div', 'toast ach', `${ICON('trophy')}<span><small>Conquista</small><b>${a.name}</b></span><i>${ICON('coin')}${a.r}</i>`); toasts.appendChild(t); while (toasts.children.length > 3) toasts.firstChild.remove(); setTimeout(() => t.classList.add('out'), 4600); setTimeout(() => t.remove(), 5100); };
   const settings = () => {
     const S = U.game.state.settings;
     const opt = (v, t, cur) => `<option value="${v}" ${cur === v ? 'selected' : ''}>${t}</option>`;
@@ -169,6 +214,7 @@ export function createUI({ project, thumbs, audio }) {
   else if (window.__APP || !window.__INSTALL) $('#b-install').hidden = true; else $('#b-install').onclick = () => { click(); install(); };
   $('#b-shop').onclick = () => { click(); shop(); };
   $('#b-album').onclick = () => { click(); album(); };
+  $('#season').onclick = () => { click(); const se = U.game.sys.season(); U.seasonInfo ? U.seasonInfo() : U.toast(`${se.name}, dia ${se.day} de ${se.of}. ${se.line}`, 'info'); };
   $('#b-set').onclick = () => { click(); settings(); };
   $('#b-photo').onclick = () => { click(); document.body.classList.add('photo'); U.closeCards(); };
   $('#photo-exit').onclick = () => document.body.classList.remove('photo');

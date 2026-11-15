@@ -267,6 +267,9 @@ export function createWorld(scene, q, unlocked) {
   // ----- decorations (bought in the shop) -----
   buildDecor(scene, world);
 
+  // ----- order stand + mailbox (always there, in the front garden) -----
+  buildServices(scene, world);
+
   // ----- grass -----
   buildGrass(scene, world, q, unlocked);
 
@@ -296,6 +299,7 @@ export function createWorld(scene, q, unlocked) {
     for (const p of POTS) if (!p.porch && (x - p.x) ** 2 + (z - p.zc) ** 2 < 0.5 ** 2) return true;
     for (const t of TREES) if ((x - t.x) ** 2 + (z - t.zc) ** 2 < 0.62 ** 2) return true;
     for (const a of ARCHES) for (const s of [-0.75, 0.75]) if ((x - a.x - s) ** 2 + (z - a.zc) ** 2 < 0.3 ** 2) return true;
+    for (const k in world.things) { const t = world.things[k]; if ((x - t.pos.x) ** 2 + (z - t.pos.z) ** 2 < t.r ** 2) return true; }
     for (const d of world.decorBlocks) if (world.decor[d.id].visible && (x - d.x) ** 2 + (z - d.z) ** 2 < d.r ** 2) return true;
     return false;
   };
@@ -410,6 +414,42 @@ function buildPond(grp, sb, world, addSpot, zr) {
   }
   world.tickers.push((dt, t) => { for (const k of koi) { const u = k.userData, a = u.a + t * u.v; const rr = u.r + 0.12 * Math.sin(t * 0.5 + u.o);
     k.position.set(x + Math.cos(a) * rx * rr, -0.03, z + Math.sin(a) * rz * rr); k.rotation.y = -a - Math.sign(u.v) * Math.PI / 2 + Math.sin(t * 5 + u.o) * 0.15; } });
+}
+
+function buildServices(scene, world) {
+  world.things = {};
+  const pickMat = new THREE.MeshBasicMaterial({ visible: false });
+  const thing = (kind, x, z, r, h, stand, top) => { const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, h, 8), pickMat); m.position.set(x, h / 2, z); m.userData.thing = kind; scene.add(m);
+    world.things[kind] = { kind, pos: new V3(x, 0, z), r: r * 0.85, stand: new V3(x + stand[0], 0, z + stand[1]), top, pick: m }; return m; };
+  // flower stall where the neighbours leave their orders
+  { const x = -1.85, z = 2.75, sb = new SB(61), R = RY(Math.PI / 2);
+    const at = (dx, dy, dz) => new V3(dx, dy, dz).applyMatrix4(R).add(new V3(x, 0, z));
+    const box = (w, h, d, dx, dy, dz, c, rot) => { const p = at(dx, dy, dz); sb.box(w, h, d, p.x, p.y, p.z, c, rot ? mul(R, rot) : R); };
+    box(1.0, 0.05, 0.56, 0, 0.66, 0, 0xb98a5e); box(0.94, 0.3, 0.5, 0, 0.5, 0, 0xa87a50);
+    for (const sx of [-0.44, 0.44]) for (const sz of [-0.22, 0.22]) box(0.06, 0.66, 0.06, sx, 0.33, sz, 0x7d5c40);
+    for (const sx of [-0.47, 0.47]) box(0.045, 1.25, 0.045, sx, 1.28, -0.24, 0x7d5c40);
+    for (let i = 0; i < 6; i++) box(0.18, 0.03, 0.7, -0.45 + i * 0.18, 1.88 - 0.0, 0.02, i % 2 ? 0xf6efe2 : 0xe2685f, RX(0.22));
+    let p = at(-0.22, 0.69, 0.02); sb.lathe([[0.001, 0], [0.13, 0], [0.17, 0.14], [0.175, 0.16], [0.16, 0.16]], p.x, p.y, p.z, 0xc49a5c, 12);
+    p = at(0.26, 0.69, 0.0); sb.lathe([[0.001, 0], [0.09, 0], [0.1, 0.2], [0.085, 0.2]], p.x, p.y, p.z, 0x7fa8c0, 10);
+    box(0.34, 0.26, 0.03, 0, 0.36, 0.3, 0x3d4a44, RX(-0.18)); box(0.38, 0.03, 0.035, 0, 0.5, 0.275, 0xb98a5e, RX(-0.18));
+    const m = sb.mesh(propMat); scene.add(m);
+    const b = new Builder(), rr = mulberry(62), cs = [0xf07aa4, 0xf7c84a, 0xffffff, 0xb48af0, 0xe2483a].map(col);
+    for (let i = 0; i < 16; i++) { const basket = i < 10, q = basket ? at(-0.22 + rr.range(-0.1, 0.1), 0.82, 0.02 + rr.range(-0.1, 0.1)) : at(0.26 + rr.range(-0.04, 0.04), 0.88, rr.range(-0.04, 0.04)), hgt = basket ? rr.range(0.06, 0.16) : rr.range(0.14, 0.26), c = rr.pick(cs);
+      b.tube(T(q.x, q.y, q.z), [new V3(0, 0, 0), new V3(0.01, hgt * 0.5, 0), new V3(rr.range(-0.05, 0.05), hgt, rr.range(-0.05, 0.05))], 0.004, 0.003, col(0x4a8a3a), col(0x5a9a44), 4);
+      for (let k = 0; k < 6; k++) b.petal(mul(T(q.x, q.y + hgt, q.z), RY(k * 1.05), RX(1.15)), { L: 0.04, W: 0.028, nu: 2, nv: 2, cup: 0.3, cols: [c, c, c] }); }
+    const fm = new THREE.Mesh(b.build(), makePlantMaterial({ sway: 0.3 })); fm.castShadow = true; scene.add(fm);
+    thing('orders', x, z, 0.62, 2.0, [1.05, 0.0], 2.15); }
+  // mailbox for the daily surprise
+  { const x = 1.7, z = 2.95, sb = new SB(63);
+    sb.cyl(0.04, 0.05, 1.05, x, 0.52, z, 0x8a6a4a, 6); sb.box(0.3, 0.2, 0.44, x, 1.14, z, 0x6f9db8);
+    sb.cyl(0.15, 0.15, 0.44, x, 1.24, z, 0x6f9db8, 12, RX(Math.PI / 2)); sb.box(0.02, 0.2, 0.02, x - 0.165, 1.2, z + 0.24, 0x4f7d98);
+    sb.cyl(0.13, 0.13, 0.012, x, 1.2, z + 0.226, 0x5b8aa6, 12, RX(Math.PI / 2));
+    scene.add(sb.mesh(propMat));
+    const flag = new THREE.Group(); flag.position.set(x + 0.16, 1.16, z - 0.05);
+    const f1 = new THREE.Mesh(new THREE.BoxGeometry(0.015, 0.26, 0.03), new THREE.MeshStandardMaterial({ color: 0xe2483a, roughness: 0.6 })); f1.position.y = 0.13; flag.add(f1);
+    const f2 = new THREE.Mesh(new THREE.BoxGeometry(0.015, 0.09, 0.12), f1.material); f2.position.set(0, 0.22, 0.06); flag.add(f2); f1.castShadow = f2.castShadow = true;
+    scene.add(flag); world.mailFlag = flag;
+    thing('mail', x, z, 0.36, 1.6, [0, 0.8], 1.75); }
 }
 
 function buildDecor(scene, world) {

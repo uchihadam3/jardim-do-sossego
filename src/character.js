@@ -3,7 +3,7 @@ import { Builder } from './builder.js';
 import { T, RX, RY, RZ, S, mul, col, mulberry, clamp, lerp, TAU, smooth, easeInOut } from './util.js';
 import { makePlantMaterial } from './plantmat.js';
 
-const SKIN = 0xfbe0cc, HAIR = [0x96693f, 0xb5854f, 0xd4a56e], DRESS = 0x7fa08a, DRESS2 = 0x6c8e78, BLOUSE = 0xfbf3e4, BOOT = 0xdfa53c, STRAW = 0xecd49a, RIBBON = 0xe8736a;
+const SKIN = 0xfbe0cc, HAIR = [0x7c5c44, 0x9a7658, 0xbc9a78], DRESS = 0x7fa08a, DRESS2 = 0x6c8e78, BLOUSE = 0xfbf3e4, BOOT = 0xdfa53c, STRAW = 0xecd49a, RIBBON = 0xe8736a;
 
 function faceTexture(mode) {
   const c = document.createElement('canvas'); c.width = 1024; c.height = 512;
@@ -18,7 +18,7 @@ function faceTexture(mode) {
       g.save(); g.beginPath(); g.ellipse(ex, ey, 16.5, 20, 0, 0, TAU); g.clip();
       g.fillStyle = '#fffdfa'; g.fillRect(ex - 20, ey - 24, 40, 48);
       const ir = g.createRadialGradient(ex, ey + 5, 2, ex, ey + 1, 16);
-      ir.addColorStop(0, '#b4f0d6'); ir.addColorStop(0.5, '#6cc4ae'); ir.addColorStop(0.88, '#32867e'); ir.addColorStop(1, '#245f5e');
+      ir.addColorStop(0, '#d9c27a'); ir.addColorStop(0.42, '#a9a45e'); ir.addColorStop(0.85, '#6f7a44'); ir.addColorStop(1, '#4a5230');
       g.fillStyle = ir; g.beginPath(); g.ellipse(ex, ey + 2, 13.5, 16.5, 0, 0, TAU); g.fill();
       g.fillStyle = '#1e2a2c'; g.beginPath(); g.ellipse(ex, ey + 2, 5.6, 7.6, 0, 0, TAU); g.fill();
       g.fillStyle = 'rgba(60,40,30,0.26)'; g.fillRect(ex - 20, ey - 24, 40, 9);
@@ -33,12 +33,12 @@ function faceTexture(mode) {
       else { g.moveTo(ex - 16, ey + 1); g.quadraticCurveTo(ex, ey + 12, ex + 16, ey + 1); }
       g.stroke();
     }
-    g.strokeStyle = '#96683f'; g.lineWidth = 3.4; g.lineCap = 'round'; g.beginPath(); g.moveTo(ex - 15, ey - 35 + s * 0); g.quadraticCurveTo(ex, ey - 42, ex + 15, ey - 35); g.stroke();
+    g.strokeStyle = '#7c5a40'; g.lineWidth = 3.4; g.lineCap = 'round'; g.beginPath(); g.moveTo(ex - 15, ey - 35 + s * 0); g.quadraticCurveTo(ex, ey - 42, ex + 15, ey - 35); g.stroke();
   }
   g.fillStyle = 'rgba(220,150,120,0.45)'; g.beginPath(); g.ellipse(cx, ey + 28, 3.4, 2.4, 0, 0, TAU); g.fill();
   g.strokeStyle = '#c4605c'; g.lineWidth = 3; g.lineCap = 'round'; g.beginPath();
   if (mode === 'happy') { g.moveTo(cx - 11, ey + 43); g.quadraticCurveTo(cx, ey + 58, cx + 11, ey + 43); g.closePath(); g.fillStyle = '#d8706a'; g.fill(); }
-  else { g.moveTo(cx - 9.5, ey + 45); g.quadraticCurveTo(cx, ey + 53, cx + 9.5, ey + 45); }
+  else { g.moveTo(cx - 12, ey + 44); g.quadraticCurveTo(cx, ey + 47.5, cx + 12, ey + 44); g.quadraticCurveTo(cx, ey + 58, cx - 12, ey + 44); g.closePath(); g.fillStyle = '#fffaf4'; g.fill(); g.lineJoin = 'round'; g.lineWidth = 2.6; }
   g.stroke();
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t;
 }
@@ -92,6 +92,7 @@ export function createGardener() {
   const head = part(new THREE.SphereGeometry(R, 40, 28), mFace, J.head); head.scale.set(0.97, 1.04, 0.96);
   part(new THREE.SphereGeometry(0.012, 8, 6), mSkin, J.head, 0, -0.03, R * 0.955).scale.set(1, 0.75, 0.6);
   for (const s of [-1, 1]) part(new THREE.SphereGeometry(0.03, 8, 6), mSkin, J.head, s * R * 0.95, -0.01, 0).scale.set(0.4, 1, 0.7);
+  for (const s of [-1, 1]) part(new THREE.SphereGeometry(0.011, 8, 6), std(0x2f8f5e, 0.3, { metalness: 0.4, emissive: 0x0f3a22 }), J.head, s * R * 0.975, -0.045, 0.004);
   // hair
   const hb = new Builder(), hr = mulberry(4), hc = HAIR.map(col);
   const Rh = R * 1.07;
@@ -101,7 +102,7 @@ export function createGardener() {
     angFn: (u) => { const s = u * L, wrap = hang * Rh; return s < wrap ? s / Rh : hang + (o.flare ?? 0) * Math.sin(((s - wrap) / Math.max(0.01, L - wrap)) * Math.PI * (o.waves ?? 1)); },
     cols: hc.map((c) => c.clone().multiplyScalar(hr.range(0.9, 1.1))), ...o });
   hb.blob(T(0, 0.034, -0.05), R * 1.0, R * 1.0, hc[0], hc[1], 16, 9);
-  for (let i = 0; i < 15; i++) { const f = i / 14 - 0.5; strand(f * 2.5 + 0.12 + hr.range(-0.04, 0.04), Rh * (0.98 + Math.abs(f) * 0.6 + hr.range(0, 0.1)), 0.125, 9, { nu: 6, b: 0.3 }); } // fringe
+  for (let i = 0; i < 15; i++) { const f = i / 14 - 0.5, part = Math.abs(f + 0.17); strand(f * 2.6 + 0.1 + hr.range(-0.04, 0.04), Rh * (0.62 + part * 1.35 + hr.range(0, 0.08)), 0.125, 9, { nu: 6, b: 0.3, twist: (f + 0.17) * 0.5 }); } // side-swept fringe
   for (const s of [-1, 1]) for (let i = 0; i < 4; i++) strand(s * (1.42 + i * 0.2), 0.42 + i * 0.07, 0.1, 1.5, { flare: -0.14, waves: 1.6, ruffle: 0.05, rf: 1.2 }); // side locks
   for (let i = 0; i < 17; i++) { const f = i / 16 - 0.5; strand(Math.PI + f * 2.9, 0.62 + hr.range(-0.04, 0.06) - Math.abs(f) * 0.1, 0.105, 1.62, { flare: -0.16, waves: 1.5, ruffle: 0.06, rf: 1.2, nu: 12 }); }
   const mHair = makePlantMaterial({ sway: 0.16, glow: 0.07, roughness: 0.48 });

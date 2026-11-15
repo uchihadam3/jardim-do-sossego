@@ -126,5 +126,17 @@ export function bubbleTextures() {
   const gift = mk((g) => { g.fillStyle = '#f7b92a'; g.beginPath(); g.arc(64, 60, 30, 0, TAU); g.fill(); g.fillStyle = '#ffd95a'; g.beginPath(); g.arc(64, 60, 24, 0, TAU); g.fill();
     g.fillStyle = '#f29a1a'; for (let i = 0; i < 5; i++) { const a = (i / 5) * TAU - Math.PI / 2; g.beginPath(); g.ellipse(64 + Math.cos(a) * 11, 60 + Math.sin(a) * 11, 8, 8, 0, 0, TAU); g.fill(); } g.fillStyle = '#fff2b0'; g.beginPath(); g.arc(64, 60, 6, 0, TAU); g.fill(); });
   const plus = (() => { const c = document.createElement('canvas'); c.width = c.height = 96; const g = c.getContext('2d'); g.fillStyle = 'rgba(255,255,255,0.92)'; g.beginPath(); g.arc(48, 48, 36, 0, TAU); g.fill(); g.strokeStyle = '#6aa85a'; g.lineWidth = 9; g.lineCap = 'round'; g.beginPath(); g.moveTo(48, 30); g.lineTo(48, 66); g.moveTo(30, 48); g.lineTo(66, 48); g.stroke(); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; })();
-  return { water, gift, plus };
+  const weed = mk((g) => { g.strokeStyle = '#5a8f3a'; g.lineWidth = 7; g.lineCap = 'round'; g.beginPath(); g.moveTo(64, 88); g.lineTo(64, 56); g.stroke();
+    g.fillStyle = '#7fb24a'; for (const [a, l] of [[-0.9, 30], [0.9, 30], [-0.25, 36], [0.3, 34]]) { g.save(); g.translate(64, 70); g.rotate(a); g.beginPath(); g.ellipse(0, -l * 0.6, 7, l * 0.55, 0, 0, TAU); g.fill(); g.restore(); }
+    g.fillStyle = '#f7d23a'; g.beginPath(); g.arc(64, 34, 9, 0, TAU); g.fill(); });
+  const prune = mk((g) => { g.strokeStyle = '#8a97a0'; g.lineWidth = 8; g.lineCap = 'round'; g.beginPath(); g.moveTo(42, 30); g.lineTo(76, 70); g.moveTo(86, 30); g.lineTo(52, 70); g.stroke();
+    g.strokeStyle = '#e2685f'; g.lineWidth = 7; g.beginPath(); g.arc(46, 82, 10, 0, TAU); g.stroke(); g.beginPath(); g.arc(82, 82, 10, 0, TAU); g.stroke(); g.fillStyle = '#5d6b72'; g.beginPath(); g.arc(64, 56, 4, 0, TAU); g.fill(); });
+  const order = mk((g) => { g.strokeStyle = '#9a6a3a'; g.lineWidth = 6; g.beginPath(); g.arc(64, 62, 24, Math.PI, 0); g.stroke();
+    g.fillStyle = '#c08a4e'; g.beginPath(); g.moveTo(36, 60); g.lineTo(92, 60); g.lineTo(84, 90); g.lineTo(44, 90); g.closePath(); g.fill(); g.strokeStyle = '#9a6a3a'; g.lineWidth = 3; for (const y of [70, 80]) { g.beginPath(); g.moveTo(40, y); g.lineTo(88, y); g.stroke(); }
+    for (const [x, y, c] of [[50, 52, '#f07aa4'], [64, 46, '#f7c84a'], [78, 52, '#b48af0']]) { g.fillStyle = c; g.beginPath(); g.arc(x, y, 9, 0, TAU); g.fill(); g.fillStyle = '#fff6c8'; g.beginPath(); g.arc(x, y, 3.5, 0, TAU); g.fill(); } });
+  const daily = mk((g) => { g.fillStyle = '#e2685f'; g.fillRect(36, 52, 56, 38); g.fillStyle = '#ee7f76'; g.fillRect(32, 40, 64, 14); g.fillStyle = '#f7c84a'; g.fillRect(58, 40, 12, 50);
+    g.strokeStyle = '#f7c84a'; g.lineWidth = 6; g.beginPath(); g.ellipse(52, 32, 11, 8, -0.5, 0, TAU); g.stroke(); g.beginPath(); g.ellipse(76, 32, 11, 8, 0.5, 0, TAU); g.stroke(); });
+  const seed = mk((g) => { g.fillStyle = '#8a5a34'; g.beginPath(); g.ellipse(64, 64, 15, 22, 0.5, 0, TAU); g.fill(); g.fillStyle = '#b07a4a'; g.beginPath(); g.ellipse(59, 58, 5, 10, 0.5, 0, TAU); g.fill();
+    g.fillStyle = '#f7c84a'; for (const [x, y, r] of [[36, 40, 7], [92, 46, 6], [88, 84, 8], [40, 86, 5]]) { g.beginPath(); for (let i = 0; i < 8; i++) { const a = (i / 8) * TAU, rr = i % 2 ? r * 0.4 : r; g.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); } g.fill(); } });
+  return { water, gift, plus, weed, prune, order, daily, seed };
 }

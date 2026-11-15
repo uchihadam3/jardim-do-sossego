@@ -2,7 +2,10 @@ import * as THREE from 'three';
 import { SPECIES, SPECIES_LIST, buildPlantGeometry, plantMaterialFor } from './species.js';
 import { ZONES, DECOR, groundY, zoneAt } from './world.js';
 import { bubbleTextures } from './fx.js';
-import { clamp, lerp, easeOutBack } from './util.js';
+import { clamp, lerp, easeOutBack, T, RX, RY, mul, col, mulberry } from './util.js';
+import { Builder } from './builder.js';
+import { makePlantMaterial } from './plantmat.js';
+import { attachSystems } from './systems.js';
 
 const SAVE_KEY = 'jardim-do-sossego-v1';
 export const WATER_MAX = 2 * 3600;
@@ -42,10 +45,11 @@ const QUESTS = [
   { t: 'Complete o álbum de flores', goal: SPECIES_LIST.length, v: (s) => s.album.length, r: 1000 },
 ];
 
-const fresh = () => ({ v: 1, coins: 45, xp: 0, zones: [0], decor: [], upg: [], plants: {}, quest: 0, album: [], stats: { planted: 0, watered: 0, collected: 0, blooms: 0 }, hour: 8.6, last: Date.now(), tips: {}, settings: { music: 0.6, sfx: 0.8, quality: 'auto', time: 'auto' } });
+const fresh = () => ({ v: 1, coins: 45, xp: 0, zones: [0], decor: [], upg: [], plants: {}, quest: 0, album: [], stats: { planted: 0, watered: 0, collected: 0, blooms: 0, orders: 0, weeds: 0, prunes: 0, fert: 0 }, hour: 8.6, last: Date.now(), t0: Date.now(), tips: {},
+  basket: {}, orders: [], orderT: 0, adubo: 0, daily: { last: '', streak: 0, best: 0 }, weeds: {}, wilt: {}, ach: {}, log: [], hybrids: [], seen: [], seasonsSeen: [], rare: {}, paint: {}, outfit: {}, settings: { music: 0.6, sfx: 0.8, quality: 'auto', time: 'auto' } });
 
 export function loadState() {
-  const merge = (s) => Object.assign(fresh(), s, { settings: Object.assign(fresh().settings, s.settings) });
+  const merge = (s) => Object.assign(fresh(), s, { settings: Object.assign(fresh().settings, s.settings), stats: Object.assign(fresh().stats, s.stats), daily: Object.assign(fresh().daily, s.daily) });
   try { const raw = localStorage.getItem(SAVE_KEY); if (raw) { const s = JSON.parse(raw); if (s && s.v === 1) return merge(s); } } catch (e) {}
   try { const s = window.__SAVE; if (s && s.v === 1) return merge(JSON.parse(JSON.stringify(s))); } catch (e) {} // garden carried over by the downloaded copy
   return fresh();
@@ -55,7 +59,9 @@ export function createGame({ scene, world, fx, audio, gardener, nav, env, ui, st
   const G = { state, tasks: [], cur: null, time: 0, rainT: 240 + Math.random() * 200, raining: 0 };
   const S = state, V = {}; // V: visuals per spot
   const tex = bubbleTextures();
-  const bubbleMat = { water: new THREE.SpriteMaterial({ map: tex.water, depthTest: false, transparent: true }), gift: new THREE.SpriteMaterial({ map: tex.gift, depthTest: false, transparent: true }), plus: new THREE.SpriteMaterial({ map: tex.plus, transparent: true, opacity: 0.85, depthWrite: false }) };
+  const bubbleMat = { water: new THREE.SpriteMaterial({ map: tex.water, depthTest: false, transparent: true }), gift: new THREE.SpriteMaterial({ map: tex.gift, depthTest: false, transparent: true }),
+    weed: new THREE.SpriteMaterial({ map: tex.weed, depthTest: false, transparent: true }), prune: new THREE.SpriteMaterial({ map: tex.prune, depthTest: false, transparent: true }), seed: new THREE.SpriteMaterial({ map: tex.seed, depthTest: false, transparent: true }),
+    order: new THREE.SpriteMaterial({ map: tex.order, depthTest: false, transparent: true }), daily: new THREE.SpriteMaterial({ map: tex.daily, depthTest: false, transparent: true }), plus: new THREE.SpriteMaterial({ map: tex.plus, transparent: true, opacity: 0.85, depthWrite: false }) };
   const dry = new THREE.Color(0x6b4e3a), wetC = new THREE.Color(0x3a281e);
 
   G.save = () => { S.last = Date.now(); try { localStorage.setItem(SAVE_KEY, JSON.stringify(S)); } catch (e) {} };
@@ -89,6 +95,18 @@ export function createGame({ scene, world, fx, audio, gardener, nav, env, ui, st
     m.castShadow = true; m.receiveShadow = true; m.position.copy(spot.pos); if (!sp.fixedRot) m.rotation.y = p.seed * 1.7;
     scene.add(m); v.mesh = m; v.stage = st; v.h = sp.h * spot.scale * (sp.tree ? [0, 0.15, 0.5, 0.8, 1][st] : [0, 0.15, 0.6, 0.9, 1][st]);
   };
+  // a scruffy little weed that pops up beside a plant
+  const weedGeo = (() => { const b = new Builder(), r = mulberry(91);
+    for (let i = 0; i < 7; i++) b.petal(mul(RY(i * 0.9 + r()), RX(r.range(0.25, 0.95))), { L: r.range(0.1, 0.19), W: 0.035, a: 0.7, b: 0.5, fold: 0.4, curl: 0.5, ruffle: 0.25, rf: 4, nu: 4, nv: 2, cols: [col(0x5e8a2e), col(0x86b03c), col(0xb6cc5a)] });
+    b.tube(null, [new THREE.Vector3(0, 0, 0), new THREE.Vector3(0.01, 0.09, 0), new THREE.Vector3(0.02, 0.17, 0.01)], 0.004, 0.003, col(0x86b03c), col(0x9cc04a), 4);
+    for (let k = 0; k < 9; k++) b.petal(mul(T(0.02, 0.17, 0.01), RY(k * 0.7), RX(1.2)), { L: 0.03, W: 0.012, nu: 2, nv: 1, cols: [col(0xf2c21e), col(0xf7d23a), col(0xfbe36a)] });
+    return b.build(); })();
+  const weedMat = makePlantMaterial({ sway: 0.6 });
+  const setWeed = (id, on) => { const v = V[id]; if (on && !v.weed) { const sp = world.spots[id], m = new THREE.Mesh(weedGeo, weedMat); m.castShadow = true; const a = id * 2.4, r = sp.type === 'tree' ? 0.5 : sp.type === 'pot' ? 0.2 : 0.27;
+      m.position.set(sp.pos.x + Math.cos(a) * r, sp.pos.y, sp.pos.z + Math.sin(a) * r); m.rotation.y = a; m.scale.setScalar(0.01); scene.add(m); v.weed = m; }
+    else if (!on && v.weed) { scene.remove(v.weed); v.weed = null; } };
+  const thingBubble = {};
+  for (const k in world.things) { const t = world.things[k], b = makeSprite(k === 'orders' ? bubbleMat.order : bubbleMat.daily, 0.5); b.position.set(t.pos.x, t.top + 0.25, t.pos.z); thingBubble[k] = b; }
   const hydrated = (p) => (SPECIES[p.sp].thirst === 0 ? true : p.wet > 0);
 
   // ---------- economy ----------
@@ -123,17 +141,19 @@ export function createGame({ scene, world, fx, audio, gardener, nav, env, ui, st
     const p = S.plants[spot.id];
     if (!p) { if (spot.pending) return; audio.sfx('click', 0.35); ui.picker(spot, speciesFor(spot)); return; }
     const sp = SPECIES[p.sp];
-    if (p.ready) { pushAct('collect', spot); ui.closeCards(); }
+    if (p.ready || S.rare[spot.id]) { pushAct('collect', spot); ui.closeCards(); }
+    else if (S.wilt[spot.id]) { pushAct('prune', spot); ui.closeCards(); }
+    else if (S.weeds[spot.id]) { pushAct('weed', spot); ui.closeCards(); }
     else if (sp.thirst !== 0 && p.wet < waterMax() * 0.4 && !has('sprinkler')) { pushAct('water', spot); ui.closeCards(); }
     else { audio.sfx('click', 0.35); G.showCard(spot); pushAct('admire', spot); }
   };
   G.showCard = (spot) => {
     const p = S.plants[spot.id]; if (!p) return;
     ui.plantCard(spot, () => { const q = S.plants[spot.id]; if (!q) return null; const sp = SPECIES[q.sp];
-      return { sp, stage: stageOf(q), grow: clamp(q.grown / sp.grow, 0, 1), water: sp.thirst === 0 ? 1 : clamp(q.wet / waterMax(), 0, 1), noWater: sp.thirst === 0, gift: q.grown >= sp.grow ? clamp(q.giftT / sp.every, 0, 1) : 0, ready: q.ready, left: Math.max(0, sp.grow - q.grown) }; },
-    { water: () => pushAct('water', spot), remove: () => pushAct('remove', spot) });
+      return { sp, stage: stageOf(q), grow: clamp(q.grown / sp.grow, 0, 1), water: sp.thirst === 0 ? 1 : clamp(q.wet / waterMax(), 0, 1), noWater: sp.thirst === 0, gift: q.grown >= sp.grow ? clamp(q.giftT / sp.every, 0, 1) : 0, ready: q.ready, left: Math.max(0, sp.grow - q.grown), adubo: S.adubo, inSeason: G.sys.inSeason(sp), weed: !!S.weeds[spot.id] }; },
+    { water: () => pushAct('water', spot), remove: () => pushAct('remove', spot), fert: () => G.fertilize(spot) });
   };
-  const speciesFor = (spot) => SPECIES_LIST.filter((s) => s.spots.includes(spot.type)).map((s) => ({ sp: s, locked: s.lvl > level(), afford: S.coins >= s.price }));
+  const speciesFor = (spot) => SPECIES_LIST.filter((s) => s.spots.includes(spot.type) && (!s.hybrid || S.hybrids.includes(s.id))).map((s) => ({ sp: s, locked: s.lvl > level(), afford: S.coins >= s.price }));
   G.choose = (spot, id) => {
     const sp = SPECIES[id];
     if (sp.lvl > level()) { audio.sfx('error'); ui.toast(`${sp.name} chega no nível ${sp.lvl}`, 'warn'); return false; }
@@ -181,17 +201,28 @@ export function createGame({ scene, world, fx, audio, gardener, nav, env, ui, st
   const doCollect = (spot) => {
     let total = 0;
     for (const id in S.plants) { const o = world.spots[id], p = S.plants[id]; if (!p.ready || o.pos.distanceTo(spot.pos) > Math.max(1.4, waterR()) + 0.01) continue;
-      const sp = SPECIES[p.sp]; p.ready = false; p.giftT = 0; total += sp.gift; S.stats.collected++;
-      const at = o.pos.clone(); at.y += V[id].h * 0.7 + 0.2; fx.sparkle(at, 12); ui.floatText(at, '+' + sp.gift, 'coin'); }
+      const sp = SPECIES[p.sp], amt = Math.round(sp.gift * G.sys.giftMul(sp)); p.ready = false; p.giftT = 0; total += amt; S.stats.collected++;
+      S.basket[p.sp] = Math.min(99, (S.basket[p.sp] || 0) + 1);
+      const at = o.pos.clone(); at.y += V[id].h * 0.7 + 0.2; fx.sparkle(at, 12); ui.floatText(at, '+' + amt, 'coin'); G.sys.afterGift && G.sys.afterGift(id); }
+    for (const id in S.rare) { const o = world.spots[id]; if (!o || o.pos.distanceTo(spot.pos) > Math.max(1.4, waterR()) + 0.01) continue; G.sys.takeRare && G.sys.takeRare(id); }
     if (total) { S.coins += total; audio.sfx('coin', 0.6); addXp(Math.ceil(total / 3)); ui.hud(); checkQuest(); save(); }
   };
-  const doRemove = (spot) => { delete S.plants[spot.id]; rebuild(spot); fx.dust(spot.pos, 14); audio.sfx('plant', 0.8, 0.8); refreshMarkers(); ui.closeCards(); checkQuest(); save(); };
+  const doWeed = (spot) => { if (!S.weeds[spot.id]) return; delete S.weeds[spot.id]; S.stats.weeds = (S.stats.weeds || 0) + 1; fx.dust(V[spot.id].weed ? V[spot.id].weed.position : spot.pos, 10); audio.sfx('plant', 0.7, 1.25);
+    const at = spot.pos.clone(); at.y += 0.4; S.coins += 3; ui.floatText(at, '+3', 'coin'); addXp(2); ui.hud(); };
+  const doPrune = (spot) => { const p = S.plants[spot.id]; if (!p || !S.wilt[spot.id]) return; delete S.wilt[spot.id]; S.stats.prunes = (S.stats.prunes || 0) + 1;
+    const sp = SPECIES[p.sp], amt = Math.round(sp.gift * 1.5 * G.sys.giftMul(sp)); p.giftT = 0; S.coins += amt; S.basket[p.sp] = Math.min(99, (S.basket[p.sp] || 0) + 2); S.stats.collected++;
+    const at = spot.pos.clone(); at.y += V[spot.id].h * 0.7 + 0.2; fx.sparkle(at, 18, 0xffd0e0); ui.floatText(at, '+' + amt, 'coin'); audio.sfx('coin', 0.6, 1.15); addXp(Math.ceil(amt / 3)); ui.hud(); save(); };
+  G.fertilize = (spot) => { const p = S.plants[spot.id]; if (!p || S.adubo < 1) return; const sp = SPECIES[p.sp]; if (p.grown >= sp.grow) { ui.toast('Esta planta já está adulta', 'info'); return; }
+    S.adubo--; S.stats.fert = (S.stats.fert || 0) + 1; p.grown = Math.min(sp.grow, p.grown + sp.grow * 0.25); const at = spot.pos.clone(); at.y += 0.3; fx.sparkle(at, 20, 0xb8f08a, 0.3); audio.sfx('bloom', 0.6, 1.2); addXp(2); save(); };
+  G.tapThing = (kind) => { audio.sfx('click', 0.35); if (kind === 'orders') ui.orders(); else if (kind === 'mail') ui.daily(); };
+  const doRemove = (spot) => { delete S.weeds[spot.id]; delete S.wilt[spot.id]; delete S.rare[spot.id]; delete S.plants[spot.id]; rebuild(spot); fx.dust(spot.pos, 14); audio.sfx('plant', 0.8, 0.8); refreshMarkers(); ui.closeCards(); checkQuest(); save(); };
 
-  const DUR = { water: 2.1, plant: 1.9, collect: 1.1, admire: 1.6, remove: 1.7 };
+  const DUR = { water: 2.1, plant: 1.9, collect: 1.1, admire: 1.6, remove: 1.7, weed: 1.5, prune: 1.2 };
   const startNext = () => {
     const t = G.tasks.shift(); if (!t) { G.cur = null; return; }
-    if ((t.kind === 'water' || t.kind === 'collect' || t.kind === 'admire' || t.kind === 'remove') && !S.plants[t.spot.id]) return startNext();
-    if (t.kind === 'collect' && !S.plants[t.spot.id].ready) return startNext();
+    if (t.kind !== 'plant' && !S.plants[t.spot.id]) return startNext();
+    if (t.kind === 'collect' && !S.plants[t.spot.id].ready && !S.rare[t.spot.id]) return startNext();
+    if ((t.kind === 'weed' && !S.weeds[t.spot.id]) || (t.kind === 'prune' && !S.wilt[t.spot.id])) return startNext();
     t.path = walkTo(t.spot.stand.x, t.spot.stand.z); t.phase = 'walk'; G.cur = t;
   };
 
@@ -209,7 +240,7 @@ export function createGame({ scene, world, fx, audio, gardener, nav, env, ui, st
         gardener.speed = 0;
         if (c.kind === 'move') { gardener.stop(); G.cur = null; }
         else { c.phase = 'act'; c.t = 0; c.done = false; gardener.faceTo(c.spot.pos.x + (c.spot.type === 'arch' ? -0.75 : 0), c.spot.pos.z);
-          gardener.play(c.kind === 'remove' ? 'plant' : c.kind, DUR[c.kind], { high: c.spot.high || (c.spot.type === 'arch' && c.kind === 'water' && false) });
+          gardener.play(c.kind === 'remove' || c.kind === 'weed' ? 'plant' : c.kind === 'prune' ? 'collect' : c.kind, DUR[c.kind], { high: c.spot.high || (c.spot.type === 'arch' && c.kind === 'water' && false) });
           if (c.kind === 'water') audio.sfx('water'); }
       } else {
         const dx = wp[0] - gp.x, dz = wp[1] - gp.z, d = Math.hypot(dx, dz);
@@ -227,6 +258,8 @@ export function createGame({ scene, world, fx, audio, gardener, nav, env, ui, st
       } else if (c.kind === 'plant') { if (!c.done && u > 0.55) { c.done = true; doPlant(c); } }
       else if (c.kind === 'remove') { if (!c.done && u > 0.55) { c.done = true; doRemove(c.spot); } }
       else if (c.kind === 'collect') { if (!c.done && u > 0.45) { c.done = true; doCollect(c.spot); } }
+      else if (c.kind === 'weed') { if (!c.done && u > 0.55) { c.done = true; doWeed(c.spot); } }
+      else if (c.kind === 'prune') { if (!c.done && u > 0.5) { c.done = true; doPrune(c.spot); } }
       else if (c.kind === 'admire') { if (!c.done && u > 0.4) { c.done = true; fx.hearts(new THREE.Vector3(gp.x, 1.7, gp.z), 4); } }
       if (u >= 1) { G.cur = null; }
     }
@@ -252,7 +285,7 @@ export function createGame({ scene, world, fx, audio, gardener, nav, env, ui, st
       if (sprink) p.wet = wm;
       const hyd = th === 0 || p.wet > 0;
       if (th > 0) p.wet = Math.max(0, p.wet - dt * th);
-      if (hyd) { if (p.grown < sp.grow) p.grown = Math.min(sp.grow, p.grown + dt * firstBoost); else if (!p.ready) { p.giftT += dt * giftBoost; if (p.giftT >= sp.every) { p.ready = true; audio.sfx('pop', 0.35, 1.3); } } }
+      if (hyd) { if (p.grown < sp.grow) p.grown = Math.min(sp.grow, p.grown + dt * firstBoost * G.sys.growMul(id, sp)); else if (!p.ready) { p.giftT += dt * giftBoost; if (p.giftT >= sp.every) { p.ready = true; audio.sfx('pop', 0.35, 1.3); } } }
       const st = stageOf(p);
       if (!v.mesh || st !== v.stage) {
         const first = v.mesh && st > v.stage; rebuild(spot);
@@ -269,14 +302,20 @@ export function createGame({ scene, world, fx, audio, gardener, nav, env, ui, st
       const targetDroop = hyd ? 0 : 0.85; v.droop += (targetDroop - v.droop) * Math.min(1, dt * 1.5); v.mesh.material.userData.u.uDroop.value = v.droop;
       if (spot.soil) spot.soil.material.color.copy(dry).lerp(wetC, th === 0 ? 1 : clamp(p.wet / wm * 2, 0, 1));
       // bubble
-      const need = p.ready ? 'gift' : !hyd ? 'water' : null, b = v.bubble;
+      const need = S.rare[id] ? 'seed' : p.ready ? 'gift' : S.wilt[id] ? 'prune' : S.weeds[id] ? 'weed' : !hyd ? 'water' : null, b = v.bubble;
+      setWeed(id, !!S.weeds[id]); if (v.weed) v.weed.scale.setScalar(Math.min(1, v.weed.scale.x + dt * 2) * 1);
       if (need) { b.visible = true; b.material = bubbleMat[need]; b.position.copy(spot.pos); b.position.y += Math.max(0.5, v.h + 0.25) + Math.sin(G.time * 2.4 + spot.id) * 0.04; if (spot.type === 'arch') b.position.y = 2.6; }
       else b.visible = false;
       if (st === 4) { blooms++; if (!sp.tree && !sp.climber && targets.length < 24) targets.push({ x: spot.pos.x, y: spot.pos.y + v.h * 0.85, z: spot.pos.z }); if (sp.petal && Math.random() < dt * 1.6) fx.petalFall(new THREE.Vector3(spot.pos.x, spot.pos.y + 3.2, spot.pos.z), sp.petal, 1.6); }
     }
-    for (const spot of world.spots) { if (!S.plants[spot.id]) { V[spot.id].bubble.visible = false; if (spot.soil && !spot.pending) spot.soil.material.color.lerp(dry, dt); } const pl = V[spot.id].plus; if (pl.visible) pl.material.opacity = 0.7 + 0.2 * Math.sin(G.time * 2); }
+    for (const spot of world.spots) { if (!S.plants[spot.id]) { V[spot.id].bubble.visible = false; if (V[spot.id].weed) setWeed(spot.id, false); if (spot.soil && !spot.pending) spot.soil.material.color.lerp(dry, dt); } const pl = V[spot.id].plus; if (pl.visible) pl.material.opacity = 0.7 + 0.2 * Math.sin(G.time * 2); }
     fx.butterflyCount = Math.min(9, Math.floor(blooms / 2) + (blooms > 0 ? 1 : 0));
 
+    // stall + mailbox
+    const ob = thingBubble.orders, mb = thingBubble.mail, bob = Math.sin(G.time * 2.4) * 0.04;
+    if (ob) { ob.visible = G.sys.anyDeliverable(); ob.position.y = world.things.orders.top + 0.25 + bob; }
+    if (mb) { const rdy = G.sys.dailyReady(); mb.visible = rdy; mb.position.y = world.things.mail.top + 0.25 + bob; if (world.mailFlag) world.mailFlag.rotation.x += ((rdy ? 0 : -1.5) - world.mailFlag.rotation.x) * Math.min(1, dt * 4); }
+    G.sys.tick(dt);
     questT -= dt; if (questT < 0) { questT = 1; checkQuest(); }
     saveT += dt; if (saveT > 10) { saveT = 0; save(); }
   };
@@ -295,9 +334,10 @@ export function createGame({ scene, world, fx, audio, gardener, nav, env, ui, st
       if (th > 0) p.wet = Math.max(0, p.wet - away * th);
       rebuild(world.spots[id]);
     }
-    G.away = away;
+    G.away = away; G.sys.init(away);
     refreshMarkers(); ui.hud(); checkQuest();
   };
-  G.zoneAt = zoneAt;
+  G.zoneAt = zoneAt; G.refreshMarkers = refreshMarkers; G.rebuild = rebuild; G.V = V;
+  attachSystems(G, { S, world, fx, audio, gardener, ui, scene, addCoins, addXp, level, save });
   return G;
 }
