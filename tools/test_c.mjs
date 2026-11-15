@@ -1,0 +1,14 @@
+import { createRequire } from 'module'; const { chromium } = createRequire(import.meta.url)('playwright');
+const SP = process.argv[2];
+const b = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
+const p = await b.newPage({ viewport: { width: 1280, height: 800 } });
+p.on('console', (m) => { if (m.type() === 'error') console.log('[error]', m.text().slice(0, 300)); });
+p.on('pageerror', (e) => console.log('[pageerror]', e.message, (e.stack || '').split('\n').slice(0, 4).join(' | ')));
+await p.goto('http://localhost:8765/local.html?q=baixa&nointro=1&demo=1&h=10&speed=4');
+await p.waitForFunction(() => window.__ready, null, { timeout: 300000 });
+await p.click('#start'); await p.waitForTimeout(40000);
+console.log('seen', await p.evaluate(() => JSON.stringify(window.__game.state.seen)));
+await p.evaluate(() => { const S = window.__game.state; S.seen = ['abelha', 'gato', 'sapo', 'beija_flor', 'passarinho']; window.__game.ui.album('bichos'); }); await p.waitForTimeout(600); await p.screenshot({ path: SP + '/c1_bichos.png' });
+await p.evaluate(() => { window.__game.ui.closeModal(); const g = window.__game; g.cam.yaw = 0.2; g.cam.pitch = 0.35; g.cam.dist = 5; g.gardener.group.position.set(1.2, 0, -4.2); });
+await p.waitForTimeout(9000); await p.screenshot({ path: SP + '/c2_cat.png' });
+await b.close();

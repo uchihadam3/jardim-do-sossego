@@ -50,7 +50,7 @@ const lathe = (pts, seg = 20) => new THREE.LatheGeometry(pts.map(([r, y]) => new
 
 export function createGardener() {
   const root = new THREE.Group(), body = joint(root, 0, 0, 0);
-  const mSkin = std(SKIN, 0.62), mDress = std(DRESS, 0.8, { side: THREE.DoubleSide }), mBlouse = std(BLOUSE, 0.8), mBoot = std(BOOT, 0.45), mStraw = std(STRAW, 0.9, { side: THREE.DoubleSide });
+  const mSkin = std(SKIN, 0.62), mDress = std(DRESS, 0.8, { side: THREE.DoubleSide }), mBlouse = std(BLOUSE, 0.8), mBoot = std(BOOT, 0.45), mDress2 = std(DRESS2, 0.8), mRibbon = std(RIBBON, 0.7, { side: THREE.DoubleSide }), mStraw = std(STRAW, 0.9, { side: THREE.DoubleSide });
   const J = {};
   J.hips = joint(body, 0, 0.87, 0);
   J.spine = joint(J.hips, 0, 0.1, 0);
@@ -64,7 +64,7 @@ export function createGardener() {
   const sk = lathe([[0.112, 0.02], [0.122, 0], [0.146, -0.1], [0.2, -0.25], [0.262, -0.4], [0.296, -0.5], [0.301, -0.52]], 28);
   { const p = sk.attributes.position; for (let i = 0; i < p.count; i++) { const y = p.getY(i), a = Math.atan2(p.getZ(i), p.getX(i)), k = 1 + 0.07 * Math.sin(a * 9) * clamp(-y / 0.5, 0, 1); p.setX(i, p.getX(i) * k); p.setZ(i, p.getZ(i) * k * 0.92); } sk.computeVertexNormals(); }
   part(sk, mDress, J.skirt).receiveShadow = false;
-  part(new THREE.TorusGeometry(0.119, 0.014, 6, 24), std(DRESS2, 0.8), J.skirt, 0, 0.012, 0).rotation.x = Math.PI / 2;
+  part(new THREE.TorusGeometry(0.119, 0.014, 6, 24), mDress2, J.skirt, 0, 0.012, 0).rotation.x = Math.PI / 2;
   // legs
   for (const s of [-1, 1]) {
     const hip = joint(J.hips, s * 0.075, 0, 0), knee = joint(hip, 0, -0.4, 0);
@@ -113,8 +113,8 @@ export function createGardener() {
   { const p = brim.attributes.position; for (let i = 0; i < p.count; i++) { const a = Math.atan2(p.getZ(i), p.getX(i)), rr = Math.hypot(p.getX(i), p.getZ(i)); p.setY(i, p.getY(i) + Math.sin(a * 2 + 0.5) * 0.02 * (rr / 0.3) ** 2 + Math.sin(a * 5) * 0.005 * (rr / 0.3)); } brim.computeVertexNormals(); }
   part(brim, mStraw, J.hat).receiveShadow = false;
   part(lathe([[0.146, 0], [0.143, 0.05], [0.128, 0.1], [0.09, 0.128], [0.001, 0.134]], 28), mStraw, J.hat);
-  part(new THREE.CylinderGeometry(0.1445, 0.148, 0.038, 28, 1, true), std(RIBBON, 0.7, { side: THREE.DoubleSide }), J.hat, 0, 0.024, 0);
-  for (const s of [-1, 1]) part(new THREE.SphereGeometry(0.03, 8, 6), std(RIBBON, 0.7), J.hat, -0.12 + 0, 0.03, s * 0.035 - 0.07).scale.set(0.5, 1.2, 1.5);
+  part(new THREE.CylinderGeometry(0.1445, 0.148, 0.038, 28, 1, true), mRibbon, J.hat, 0, 0.024, 0);
+  for (const s of [-1, 1]) part(new THREE.SphereGeometry(0.03, 8, 6), mRibbon, J.hat, -0.12 + 0, 0.03, s * 0.035 - 0.07).scale.set(0.5, 1.2, 1.5);
   // little flower on the hat
   { const fb = new Builder(); for (let k = 0; k < 6; k++) fb.petal(mul(RY(k * 1.047), RX(1.25)), { L: 0.034, W: 0.026, nu: 2, nv: 2, cup: 0.3, cols: [col(0xfff6e0), col(0xffffff), col(0xffffff)] }); fb.blob(T(0, 0.004, 0), 0.01, 0.006, col(0xf2b21c), col(0xf8d040), 6, 3);
     const f = new THREE.Mesh(fb.build(), std(0xffffff, 0.7, { vertexColors: true, side: THREE.DoubleSide })); f.position.set(0.108, 0.045, 0.103); f.rotation.set(1.1, 0, -0.75); J.hat.add(f); }
@@ -144,6 +144,7 @@ export function createGardener() {
   g.stop = () => { g.state = 'idle'; can.visible = false; trowel.visible = false; };
   g.faceTo = (x, z) => { g.targetHeading = Math.atan2(x - root.position.x, z - root.position.z); };
 
+  g.setOutfit = (o = {}) => { if (o.dress != null) { mDress.color.setHex(o.dress); mDress2.color.setHex(o.dress).multiplyScalar(0.82); } if (o.ribbon != null) mRibbon.color.setHex(o.ribbon); if (o.boots != null) mBoot.color.setHex(o.boots); };
   g.update = (dt, time) => {
     g.t += dt;
     const P = pose; let k = 10; // smoothing rate

@@ -1,8 +1,9 @@
 import { SPECIES_LIST } from './species.js';
 import { DECOR } from './world.js';
-import { UPGRADES, STAGE_NAMES, LV } from './game.js';
+import { UPGRADES, STAGE_NAMES, LV, STYLE } from './game.js';
 import { SPECIES } from './species.js';
 import { ACH, DAILY } from './systems.js';
+import { CRITTERS } from './critters.js';
 
 const $ = (s) => document.querySelector(s);
 const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html !== undefined) e.innerHTML = html; return e; };
@@ -107,9 +108,10 @@ export function createUI({ project, thumbs, audio }) {
     const dec = DECOR.map((d) => { const own = S.decor.includes(d.id); return `<div class="item ${own ? 'own' : ''}"><div><b>${d.name}</b><small>${d.desc}</small></div>${own ? '<span class="tagok">No jardim</span>' : `<button class="btn" data-buy="d:${d.id}" ${S.coins >= d.price ? '' : 'disabled'}>${ICON('coin')}${d.price}</button>`}</div>`; }).join('');
     const upg = UPGRADES.map((u) => { const own = S.upg.includes(u.id), locked = u.need && !S.upg.includes(u.need); return `<div class="item ${own ? 'own' : ''}"><div><b>${u.name}</b><small>${u.desc}</small></div>${own ? '<span class="tagok">Comprado</span>' : locked ? '<span class="taglock">Depois do anterior</span>' : `<button class="btn" data-buy="u:${u.id}" ${S.coins >= u.price ? '' : 'disabled'}>${ICON('coin')}${u.price}</button>`}</div>`; }).join('');
     openModal(`<div class="p-h"><h2>Lojinha do jardim</h2><span class="wallet">${ICON('coin')}${S.coins}</span><button class="x" data-close aria-label="Fechar">${ICON('x')}</button></div>
-      <div class="tabs"><button class="${tab === 'decor' ? 'on' : ''}" data-tab="decor">Decoração</button><button class="${tab === 'upg' ? 'on' : ''}" data-tab="upg">Melhorias</button></div>
+      <div class="tabs"><button class="${tab === 'decor' ? 'on' : ''}" data-tab="decor">Decoração</button><button class="${tab === 'upg' ? 'on' : ''}" data-tab="upg">Melhorias</button><button data-style>Cores e roupas</button></div>
       <div class="list">${tab === 'decor' ? dec : upg}</div><p class="hint">Sementes e mudas você escolhe tocando num lugar vazio do jardim.</p>`);
     modal.querySelectorAll('[data-tab]').forEach((b) => (b.onclick = () => { click(); shop(b.dataset.tab); }));
+    modal.querySelectorAll('[data-style]').forEach((b) => (b.onclick = () => { click(); U.style('roupas'); }));
     modal.querySelectorAll('[data-buy]').forEach((b) => (b.onclick = () => { const [k, id] = b.dataset.buy.split(':'); if (k === 'd') G.buyDecor(id); else G.buyUpgrade(id); shop(tab); }));
   };
   const album = (tab = 'flores') => {
@@ -133,6 +135,8 @@ export function createUI({ project, thumbs, audio }) {
   U.rareTab = () => { const S = U.game.state, H = U.game.sys.hybrids; return { count: `${H.filter((h) => S.hybrids.includes(h.id)).length}/${H.length}`,
     html: `<p class="hint">Quando duas flores diferentes florescem lado a lado, às vezes deixam uma semente especial. Recolha os presentes delas e fique de olho.</p><div class="list">${H.map((h) => { const got = S.hybrids.includes(h.id), [a, b] = h.hybrid.map((id) => SPECIES[id]);
       return `<div class="item rare ${got ? 'own' : ''}"><img class="r-th ${got ? '' : 'q'}" alt="" src="${thumbs[h.id] || ''}"><div><b>${got ? h.name : '? ? ?'}</b><small>${got ? h.info : `Dizem que <i>${a.name}</i> e <i>${b.name}</i>, lado a lado, guardam um segredo.`}</small></div><div class="r-par"><img alt="" src="${thumbs[a.id] || ''}"><span>+</span><img alt="" src="${thumbs[b.id] || ''}"></div></div>`; }).join('')}</div>` }; };
+  U.critterTab = () => { const S = U.game.state; return { count: `${S.seen.length}/${CRITTERS.length}`,
+    html: `<p class="hint">Cada visitante chega sozinho quando o jardim tem aquilo de que ele gosta.</p><div class="albgrid crit">${CRITTERS.map((c) => { const got = S.seen.includes(c.id); return `<div class="alb ${got ? 'got' : ''}"><img alt="" src="${thumbs['c:' + c.id] || ''}"><b>${got ? c.name : '? ? ?'}</b><small>${c.hint}</small></div>`; }).join('')}</div>` }; };
   U.rare = (h) => setTimeout(() => openModal(`<div class="rare-hero"><img alt="" src="${thumbs[h.id] || ''}"></div><h2>Raridade descoberta!</h2><p><b>${h.name}</b>. ${h.info}</p><p class="hint">Ela já está entre as suas sementes.</p><div class="row"><button class="btn big" data-close>Que maravilha!</button></div>`, 'small center'), 600);
   U.seasonInfo = () => { const G = U.game, se = G.sys.season(), lvl = G.level();
     const fav = SPECIES_LIST.filter((s) => s.loves && s.loves.includes(se.id) && s.lvl <= lvl && (!s.hybrid || G.state.hybrids.includes(s.id))), only = SPECIES_LIST.filter((s) => s.season === se.id);
@@ -143,6 +147,18 @@ export function createUI({ project, thumbs, audio }) {
       <div class="sgroup"><b>Crescem mais rápido e rendem mais agora</b><div class="chips">${fav.length ? fav.slice(0, 18).map(chip).join('') : '<small>Suba de nível para conhecer as flores desta estação.</small>'}</div></div>
       <p class="hint">Nenhuma planta sofre fora da estação; ela só fica no ritmo normal.</p>`); };
 
+  // ---------- "do seu jeito": clothes and house colours ----------
+  U.style = (tab = 'roupas') => {
+    const G = U.game, S = G.state, hx = (n) => '#' + n.toString(16).padStart(6, '0');
+    const groups = Object.keys(STYLE).filter((k) => !!STYLE[k].house === (tab === 'casa')).map((k) => { const d = STYLE[k], cur = S.style[k] || d.opts[0][0];
+      return `<div class="sgroup"><b>${d.name}</b><div class="swatches">${d.opts.map((o, i) => { const own = i === 0 || S.style.own.includes(k + ':' + o[0]);
+        return `<button class="sw ${cur === o[0] ? 'on' : ''}" data-k="${k}" data-id="${o[0]}" title="${o[1]}" aria-label="${o[1]}"><i style="background:${hx(o[2])}"></i><small>${own ? o[1] : `${ICON('coin')}${d.price}`}</small></button>`; }).join('')}</div></div>`; }).join('');
+    openModal(`<div class="p-h"><h2>Do seu jeito</h2><span class="wallet">${ICON('coin')}${S.coins}</span><button class="x" data-close aria-label="Fechar">${ICON('x')}</button></div>
+      <div class="tabs"><button class="${tab === 'roupas' ? 'on' : ''}" data-tab="roupas">Roupas da Eliane</button><button class="${tab === 'casa' ? 'on' : ''}" data-tab="casa">Casa e cerca</button></div>${groups}
+      <p class="hint">Cada cor nova é comprada uma vez só; depois é só trocar quando quiser.</p>`, 'style');
+    modal.querySelectorAll('[data-tab]').forEach((b) => (b.onclick = () => { click(); U.style(b.dataset.tab); }));
+    modal.querySelectorAll('.sw').forEach((b) => (b.onclick = () => { G.pickStyle(b.dataset.k, b.dataset.id); U.style(tab); }));
+  };
   // ---------- flower stall: neighbours' orders ----------
   U.orders = () => {
     const G = U.game, S = G.state, sys = G.sys;

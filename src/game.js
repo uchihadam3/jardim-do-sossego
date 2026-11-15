@@ -15,6 +15,15 @@ export const UPGRADES = [
   { id: 'can2', name: 'Regador dourado', price: 1800, desc: 'Rega longe e a água dura o dobro.', need: 'can1' },
   { id: 'sprinkler', name: 'Aspersores automáticos', price: 7500, desc: 'O jardim inteiro se rega sozinho.', need: 'can2' },
 ];
+// "do seu jeito": Eliane's clothes and the colours of the house. The first of each list is the free default.
+export const STYLE = {
+  dress: { name: 'Vestido', price: 200, opts: [['salvia', 'Verde-sálvia', 0x7fa08a], ['ceu', 'Azul-céu', 0x7fa8c8], ['rosa', 'Rosa-antigo', 0xd89aa4], ['manteiga', 'Amarelo-manteiga', 0xe8cf7a], ['lilas', 'Lilás', 0xa894c8], ['cereja', 'Cereja', 0xc8504a]] },
+  ribbon: { name: 'Fita do chapéu', price: 120, opts: [['coral', 'Coral', 0xe8736a], ['azul', 'Azul', 0x5a8ac8], ['sol', 'Amarelo', 0xf2c84a], ['lilas', 'Lilás', 0x9a7ac8], ['branca', 'Branca', 0xfaf4ec]] },
+  boots: { name: 'Galochas', price: 150, opts: [['mostarda', 'Mostarda', 0xdfa53c], ['vermelha', 'Vermelhas', 0xd8483a], ['verde', 'Verdes', 0x5a9a5a], ['azul', 'Azuis', 0x4a7ab8], ['rosa', 'Rosa', 0xe88aa8]] },
+  wall: { name: 'Paredes da casa', price: 400, house: true, opts: [['creme', 'Creme', 0xf6ecd9], ['amarela', 'Amarelinha', 0xf7e3a0], ['rosa', 'Rosada', 0xf2c8c2], ['azul', 'Azul-clarinha', 0xcfe0ea], ['verde', 'Verde-clarinha', 0xd4e6c8]] },
+  trim: { name: 'Porta e janelas', price: 300, house: true, opts: [['mar', 'Verde-mar', 0x5f8f8a, 0x6f93a8], ['vermelha', 'Vermelhas', 0xb8483a, 0xa8584a], ['marinho', 'Azul-marinho', 0x3f5f8a, 0x4a6a98], ['sol', 'Amarelas', 0xd8a83a, 0xc89a3a], ['lilas', 'Lilases', 0x8a6aa8, 0x9a7ab8]] },
+  fence: { name: 'Cerca', price: 350, house: true, opts: [['branca', 'Branca', 0xf3ede2], ['madeira', 'Madeira', 0xb98a5e], ['verde', 'Verde-menta', 0xa8c8a8], ['azul', 'Azul-claro', 0xb0c8dc]] },
+};
 export const STAGE_NAMES = ['', 'Brotinho', 'Crescendo', 'Em botão', 'Em flor'];
 
 const QUESTS = [
@@ -23,9 +32,13 @@ const QUESTS = [
   { t: 'Plante 3 flores no canteiro', goal: 3, v: (s, g) => g.count(), r: 20 },
   { t: 'Veja uma flor desabrochar', goal: 1, v: (s) => s.stats.blooms, r: 25 },
   { t: 'Recolha o presente de uma flor', goal: 1, v: (s) => s.stats.collected, r: 20 },
+  { t: 'Abra a caixa de correio azul', goal: 1, v: (s) => s.daily.streak, r: 15 },
   { t: 'Tenha 8 plantas no jardim', goal: 8, v: (s, g) => g.count(), r: 30 },
+  { t: 'Entregue um pedido na banquinha de flores', goal: 1, v: (s) => s.stats.orders || 0, r: 30 },
   { t: 'Abra a Varanda', goal: 1, v: (s) => +s.zones.includes(1), r: 40 },
   { t: 'Plante num vaso suspenso', goal: 1, v: (s, g) => g.count((p, sp) => sp.type === 'hang'), r: 30 },
+  { t: 'Abra a Horta', goal: 1, v: (s) => +s.zones.includes(7), r: 40 },
+  { t: 'Plante uma hortaliça', goal: 1, v: (s, g) => g.count((p, sp) => sp.type === 'veg'), r: 30 },
   { t: 'Tenha 3 espécies diferentes em flor', goal: 3, v: (s, g) => g.bloomSpecies(), r: 40 },
   { t: 'Compre uma decoração na loja', goal: 1, v: (s) => s.decor.length, r: 40 },
   { t: 'Abra os Canteiros do leste', goal: 1, v: (s) => +s.zones.includes(2), r: 60 },
@@ -36,17 +49,19 @@ const QUESTS = [
   { t: 'Álbum: veja 12 espécies florirem', goal: 12, v: (s) => s.album.length, r: 120 },
   { t: 'Abra a Alameda dos arcos', goal: 1, v: (s) => +s.zones.includes(4), r: 150 },
   { t: 'Cubra um arco com uma trepadeira em flor', goal: 1, v: (s, g) => g.count((p, sp) => sp.type === 'arch' && p.grown >= SPECIES[p.sp].grow), r: 150 },
+  { t: 'Descubra uma raridade (veja o álbum)', goal: 1, v: (s) => s.hybrids.length, r: 200 },
   { t: 'Tenha 30 plantas em flor', goal: 30, v: (s, g) => g.blooming(), r: 200 },
   { t: 'Abra o Pomar', goal: 1, v: (s) => +s.zones.includes(5), r: 200 },
   { t: 'Tenha 3 árvores em flor', goal: 3, v: (s, g) => g.count((p, sp) => sp.type === 'tree' && p.grown >= SPECIES[p.sp].grow), r: 250 },
   { t: 'Abra o Prado das flores', goal: 1, v: (s) => +s.zones.includes(6), r: 300 },
   { t: 'Álbum: veja 30 espécies florirem', goal: 30, v: (s) => s.album.length, r: 400 },
   { t: 'Tenha 60 plantas em flor', goal: 60, v: (s, g) => g.blooming(), r: 600 },
+  { t: 'Construa a Estufa', goal: 1, v: (s) => +s.zones.includes(8), r: 500 },
   { t: 'Complete o álbum de flores', goal: SPECIES_LIST.length, v: (s) => s.album.length, r: 1000 },
 ];
 
 const fresh = () => ({ v: 1, coins: 45, xp: 0, zones: [0], decor: [], upg: [], plants: {}, quest: 0, album: [], stats: { planted: 0, watered: 0, collected: 0, blooms: 0, orders: 0, weeds: 0, prunes: 0, fert: 0 }, hour: 8.6, last: Date.now(), t0: Date.now(), tips: {},
-  basket: {}, orders: [], orderT: 0, adubo: 0, daily: { last: '', streak: 0, best: 0 }, weeds: {}, wilt: {}, ach: {}, log: [], hybrids: [], seen: [], seasonsSeen: [], rare: {}, paint: {}, outfit: {}, settings: { music: 0.6, sfx: 0.8, quality: 'auto', time: 'auto' } });
+  style: { own: [] }, basket: {}, orders: [], orderT: 0, adubo: 0, daily: { last: '', streak: 0, best: 0 }, weeds: {}, wilt: {}, ach: {}, log: [], hybrids: [], seen: [], seasonsSeen: [], rare: {}, paint: {}, outfit: {}, settings: { music: 0.6, sfx: 0.8, quality: 'auto', time: 'auto' } });
 
 export function loadState() {
   const merge = (s) => Object.assign(fresh(), s, { settings: Object.assign(fresh().settings, s.settings), stats: Object.assign(fresh().stats, s.stats), daily: Object.assign(fresh().daily, s.daily) });
@@ -217,7 +232,15 @@ export function createGame({ scene, world, fx, audio, gardener, nav, env, ui, st
     const at = spot.pos.clone(); at.y += V[spot.id].h * 0.7 + 0.2; fx.sparkle(at, 18, 0xffd0e0); ui.floatText(at, '+' + amt, 'coin'); audio.sfx('coin', 0.6, 1.15); addXp(Math.ceil(amt / 3)); ui.hud(); G.sys.afterGift(spot.id); save(); };
   G.fertilize = (spot) => { const p = S.plants[spot.id]; if (!p || S.adubo < 1) return; const sp = SPECIES[p.sp]; if (p.grown >= sp.grow) { ui.toast('Esta planta já está adulta', 'info'); return; }
     S.adubo--; S.stats.fert = (S.stats.fert || 0) + 1; p.grown = Math.min(sp.grow, p.grown + sp.grow * 0.25); const at = spot.pos.clone(); at.y += 0.3; fx.sparkle(at, 20, 0xb8f08a, 0.3); audio.sfx('bloom', 0.6, 1.2); addXp(2); save(); };
-  G.tapThing = (kind) => { audio.sfx('click', 0.35); if (kind === 'orders') ui.orders(); else if (kind === 'mail') ui.daily(); };
+  G.tapThing = (kind) => { audio.sfx('click', 0.35); if (kind === 'orders') ui.orders(); else if (kind === 'mail') ui.daily(); else if (kind === 'eliane') ui.style('roupas'); else if (kind === 'house') ui.style('casa'); };
+  const styleOf = (k) => { const o = STYLE[k].opts; return o.find((x) => x[0] === S.style[k]) || o[0]; };
+  G.applyStyle = () => { gardener.setOutfit({ dress: styleOf('dress')[2], ribbon: styleOf('ribbon')[2], boots: styleOf('boots')[2] });
+    const t = styleOf('trim'), key = [styleOf('wall')[0], t[0], styleOf('fence')[0]].join();
+    if (G._painted !== key) { if (G._painted || key !== 'creme,mar,branca') { world.paintHouse({ wall: styleOf('wall')[2], door: t[2], shut: t[3] }); world.paintFence(styleOf('fence')[2]); } G._painted = key; } };
+  G.pickStyle = (k, id) => { const def = STYLE[k], opt = def.opts.find((x) => x[0] === id); if (!opt) return false; const own = id === def.opts[0][0] || S.style.own.includes(k + ':' + id);
+    if (!own) { if (S.coins < def.price) { audio.sfx('error'); ui.toast(`Faltam ${def.price - S.coins} moedas para esta cor`, 'warn'); return false; } S.coins -= def.price; S.style.own.push(k + ':' + id); audio.sfx('buy'); fx.burst(gardener.group.position, [opt[2], 0xffffff, 0xffe680], 26, 1); ui.hud(); }
+    else audio.sfx('click', 0.5);
+    S.style[k] = id; G.applyStyle(); if (!def.house) gardener.play('cheer', 1.2); save(); return true; };
   const doRemove = (spot) => { delete S.weeds[spot.id]; delete S.wilt[spot.id]; delete S.rare[spot.id]; delete S.plants[spot.id]; rebuild(spot); fx.dust(spot.pos, 14); audio.sfx('plant', 0.8, 0.8); refreshMarkers(); ui.closeCards(); checkQuest(); save(); };
 
   const DUR = { water: 2.1, plant: 1.9, collect: 1.1, admire: 1.6, remove: 1.7, weed: 1.5, prune: 1.2 };
@@ -337,7 +360,7 @@ export function createGame({ scene, world, fx, audio, gardener, nav, env, ui, st
       if (th > 0) p.wet = Math.max(0, p.wet - away * th);
       rebuild(world.spots[id]);
     }
-    G.away = away; G.sys.init(away);
+    G.away = away; G.sys.init(away); if (!S.style || !S.style.own) S.style = { own: [] }; G.applyStyle();
     refreshMarkers(); ui.hud(); checkQuest();
   };
   G.zoneAt = zoneAt; G.refreshMarkers = refreshMarkers; G.rebuild = rebuild; G.V = V;

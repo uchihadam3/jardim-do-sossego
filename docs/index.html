@@ -61,6 +61,7 @@ body.playing #tags{opacity:1;visibility:visible}
 /* bottom sheet */
 #sheet{position:absolute;left:0;right:0;bottom:0;background:var(--paper);border-radius:24px 24px 0 0;box-shadow:0 -8px 30px rgba(30,55,38,.25);padding:12px 0 max(12px,env(safe-area-inset-bottom,0px));transform:translateY(105%);transition:transform .32s cubic-bezier(.2,.9,.3,1)}
 #sheet.on{transform:none}
+#sheet:not(.on),#card:not(.on){visibility:hidden;transition:transform .32s cubic-bezier(.2,.9,.3,1),visibility 0s .32s}
 .sheet-h{display:flex;justify-content:space-between;align-items:center;padding:0 max(16px,env(safe-area-inset-right,0px)) 8px max(16px,env(safe-area-inset-left,0px))}
 .sheet-h b{font-family:var(--display);font-weight:600;font-size:19px;display:block}
 .sheet-h span{font-size:13px;color:var(--ink-soft);font-weight:700}
@@ -144,6 +145,18 @@ body.playing #tags{opacity:1;visibility:visible}
 .diary span{display:inline-block;min-width:54px;font-family:var(--display);font-weight:600;color:var(--leaf-d);margin-right:6px}
 .alb em{font-style:normal;font-size:10px;font-weight:800;color:var(--honey-d);text-transform:uppercase;letter-spacing:.05em}
 .tabs{overflow-x:auto;scrollbar-width:none} .tabs button{white-space:nowrap;padding-inline:12px}
+.albgrid.crit{grid-template-columns:repeat(auto-fill,minmax(132px,1fr))}
+.alb small{font-size:11px;font-weight:700;color:var(--ink-soft);line-height:1.25;margin-top:2px}
+.albgrid.crit .alb:not(.got) img{filter:brightness(0) opacity(.14)}
+.swatches{display:flex;flex-wrap:wrap;gap:8px}
+.sw{display:flex;flex-direction:column;align-items:center;gap:3px;width:66px;padding:6px 2px;border-radius:14px;border:2px solid transparent}
+.sw i{width:38px;height:38px;border-radius:50%;box-shadow:inset 0 -3px 0 rgba(0,0,0,.12),0 2px 6px rgba(30,55,38,.25);border:3px solid #fff}
+.sw small{font-size:10.5px;font-weight:800;color:var(--ink-soft);line-height:1.1;display:flex;align-items:center;gap:2px;text-align:center}
+.sw small .ic{width:12px;height:12px}
+.sw.on{border-color:var(--leaf);background:#eef6e2} .sw.on small{color:var(--leaf-d)}
+.sw:hover{background:var(--paper-2)}
+.panel.style{background:rgba(251,250,241,.96)}
+#modal:has(.panel.style){background:rgba(34,52,40,.12);backdrop-filter:none;place-items:end center}
 .item.rare{justify-content:flex-start}
 .r-th{width:64px;height:64px;object-fit:contain;flex:none;border-radius:12px;background:radial-gradient(circle at 50% 70%,#f3f8e6,#dcebd0)}
 .r-th.q{filter:brightness(0) opacity(.16)}
@@ -276,5 +289,5 @@ body.photo #photo-exit{display:inline-flex}
   <button class="btn big" id="start" hidden>Começar</button>
 </div>
 <div id="err" hidden></div>
-<script src="game.js?v=3e65c75f38"></script>
+<script src="game.js?v=2046314963"></script>
 </body></html>

@@ -11,6 +11,7 @@ import { createGame, loadState } from './game.js';
 import { SPECIES_LIST, buildPlantGeometry, plantMaterialFor } from './species.js';
 import { windU } from './plantmat.js';
 import { clamp, lerp, smooth } from './util.js';
+import { createCritters, critterModel, CRITTERS } from './critters.js';
 
 const V3 = THREE.Vector3;
 const $ = (s) => document.querySelector(s);
@@ -35,6 +36,13 @@ async function makeThumbs(renderer, onProgress) {
     onProgress((i + 1) / SPECIES_LIST.length);
     if (i % 3 === 2) await new Promise((r) => setTimeout(r, 0));
   }
+  // visitors' portraits
+  for (const c of CRITTERS) { const m = critterModel(c.id); sc.add(m); m.updateMatrixWorld(true);
+    const bb = new THREE.Box3().setFromObject(m), ctr = bb.getCenter(new V3()), size = bb.getSize(new V3()), r = Math.max(size.x, size.y, size.z) * 0.7 + 0.005, dist = r / Math.tan((13 * Math.PI) / 180);
+    cam.position.set(ctr.x + dist * 0.55, ctr.y + dist * 0.45, ctr.z + dist * 0.7); cam.lookAt(ctr); cam.near = dist * 0.1; cam.far = dist * 4; cam.updateProjectionMatrix();
+    renderer.setRenderTarget(rt); renderer.setClearColor(0x000000, 0); renderer.clear(); renderer.render(sc, cam); renderer.readRenderTargetPixels(rt, 0, 0, N, N, buf); renderer.setRenderTarget(null);
+    const img = ctx.createImageData(N, N); for (let y = 0; y < N; y++) img.data.set(buf.subarray((N - 1 - y) * N * 4, (N - y) * N * 4), y * N * 4);
+    ctx.putImageData(img, 0, 0); thumbs['c:' + c.id] = cv.toDataURL('image/png'); sc.remove(m); }
   windU.uDay.value = oldDay; rt.dispose();
   return thumbs;
 }
@@ -86,6 +94,7 @@ async function boot() {
   ui.onQuality = (q) => setQ(q === 'auto' ? (mobile ? 'media' : 'alta') : q);
   ui.onReset = () => { game.save = () => {}; location.reload(); };
   ui.focus = (x, z) => { cam.focus.set(x, 0.8, z); cam.focusT = 3.2; };
+  const critters = createCritters(scene, world, { S: state, G: game, env, fx, ui, audio });
   game.init();
   const returning = game.count() > 0 || state.stats.planted > 0;
   startBtn.textContent = returning ? 'Voltar ao meu jardim' : 'Começar';
@@ -104,10 +113,13 @@ async function boot() {
   // ---------- input ----------
   const ptrs = new Map(); let downAt = 0, moved = 0, pinch0 = 0, dist0 = 0;
   const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), plane = new THREE.Plane(new V3(0, 1, 0), 0), hit = new V3();
+  const elianePick = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 1.75, 8), new THREE.MeshBasicMaterial({ visible: false })); elianePick.position.y = 0.875; gardener.group.add(elianePick);
   const pickAt = (cx, cy) => {
     const r = canvas.getBoundingClientRect(); ndc.set(((cx - r.left) / r.width) * 2 - 1, -((cy - r.top) / r.height) * 2 + 1); ray.setFromCamera(ndc, camera);
     const hits = ray.intersectObjects(world.pickables.filter((m) => m.visible || !state.zones.includes(m.userData.spot.zone)), false);
     const th = ray.intersectObjects(Object.values(world.things).map((t) => t.pick), false);
+    const eh = ray.intersectObject(elianePick, false);
+    if (eh.length && (!hits.length || eh[0].distance < hits[0].distance) && (!th.length || eh[0].distance < th[0].distance) && gardener.state === 'idle') return { thing: 'eliane' };
     if (th.length && (!hits.length || th[0].distance < hits[0].distance)) return { thing: th[0].object.userData.thing };
     if (hits.length) return { spot: hits[0].object.userData.spot };
     if (ray.ray.intersectPlane(plane, hit)) return { ground: hit.clone() };
@@ -155,6 +167,7 @@ async function boot() {
     gardener.update(dt, time);
     env.setHour(state.hour); world.setNight(env.night); world.update(dt, time); env.update(dt, camera.position);
     { const se = game.sys.season().id; if (se !== fx.season) { world.setSeason(se, fx.season === -1); fx.season = se; } }
+    if (started) critters.update(dt, time);
     fx.update(dt, time, env, camera, world.chimney); audio.update(env.night, fx.rain);
     windU.uWind.value = 1 + fx.rain * 0.8;
     // camera

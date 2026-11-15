@@ -113,7 +113,7 @@ const onPath = (x, z) => (Math.abs(x) < 0.75 && z > -4.6 && z < 15.5) || (z > 3.
 export const groundY = (x, z) => (z < -4.95 && Math.abs(x) < 4.9 ? PORCH_Y : z < -4.6 && Math.abs(x) < 1.4 ? lerp(0, PORCH_Y, clamp((-4.6 - z) / 0.35, 0, 1)) : 0);
 
 export function createWorld(scene, q, unlocked) {
-  const world = { spots: [], zones: ZONES, decor: {}, zoneGroups: [], lockGroups: [], nightMats: [], lamps: [], tickers: [] };
+  const world = { pond: POND, spots: [], zones: ZONES, decor: {}, zoneGroups: [], lockGroups: [], nightMats: [], lamps: [], tickers: [] };
   const rng = mulberry(77);
 
   // ----- ground -----
@@ -168,11 +168,11 @@ export function createWorld(scene, q, unlocked) {
   }
 
   // ----- house -----
-  buildHouse(scene, world);
+  buildHouse(scene, world); world.paintHouse = (pal) => buildHouse(scene, world, pal);
 
-  // ----- fence -----
-  {
-    const sb = new SB(21), W = 0xf3ede2;
+  // ----- fence (repaintable) -----
+  world.paintFence = (fenceColor = 0xf3ede2) => {
+    const sb = new SB(21), W = fenceColor;
     const run = (x0, z0, x1, z1) => {
       const L = Math.hypot(x1 - x0, z1 - z0), n = Math.round(L / 0.24), ang = Math.atan2(x1 - x0, z1 - z0), R = RY(ang);
       for (let i = 0; i <= n; i++) {
@@ -188,8 +188,10 @@ export function createWorld(scene, q, unlocked) {
     sb.box(2.7, 0.12, 0.16, 0, 2.2, 14.7, W); sb.box(2.9, 0.06, 0.3, 0, 2.29, 14.7, W);
     // mailbox
     sb.box(0.08, 1.0, 0.08, 2.0, 0.5, 15.3, 0x7a5a40); sb.box(0.24, 0.2, 0.36, 2.0, 1.08, 15.3, 0xc8483a); sb.box(0.02, 0.14, 0.1, 2.13, 1.14, 15.2, 0xf3ede2);
-    scene.add(sb.mesh(propMat));
-  }
+    if (world.fenceMesh) { scene.remove(world.fenceMesh); world.fenceMesh.geometry.dispose(); }
+    world.fenceMesh = sb.mesh(propMat); scene.add(world.fenceMesh);
+  };
+  world.paintFence();
 
   // ----- zone content -----
   const potGeoPts = [[0.001, 0], [0.17, 0], [0.19, 0.04], [0.25, 0.36], [0.285, 0.38], [0.285, 0.43], [0.25, 0.43], [0.235, 0.4]];
@@ -318,9 +320,10 @@ export function createWorld(scene, q, unlocked) {
   return world;
 }
 
-function buildHouse(scene, world) {
+function buildHouse(scene, world, pal = {}) {
+  const first = !world.houseMesh, DOOR = pal.door ?? 0x5f8f8a, SHUT = pal.shut ?? 0x6f93a8, dk = (c) => new THREE.Color(c).multiplyScalar(0.9).getHex();
   const sb = new SB(31), r = mulberry(32);
-  const WALL = 0xf6ecd9, WOOD = 0x6e4c34, TRIM = 0xfbf6ec, ROOF = [0xb9583a, 0xc46442, 0xae5034, 0xcc6e4a, 0xb85c40];
+  const WALL = pal.wall ?? 0xf6ecd9, WOOD = 0x6e4c34, TRIM = 0xfbf6ec, ROOF = [0xb9583a, 0xc46442, 0xae5034, 0xcc6e4a, 0xb85c40];
   const zc = -10, w = 9, d = 6.2, h = 3.0, zf = -6.9;
   sb.box(w, h, d, 0, h / 2, zc, WALL, null, 0); sb.box(w + 0.12, 0.5, d + 0.12, 0, 0.25, zc, 0xb5a696, null, 0);
   // gables
@@ -351,24 +354,24 @@ function buildHouse(scene, world) {
   sb.box(0.7, 1.9, 0.7, 2.6, h + gh - 0.3, zc - 1.0, 0xa8674e); sb.box(0.84, 0.14, 0.84, 2.6, h + gh + 0.68, zc - 1.0, 0x8e5540);
   world.chimney = new V3(2.6, h + gh + 0.8, zc - 1.0);
   // door
-  sb.box(1.24, 2.28, 0.1, 0, 1.14 + PORCH_Y, zf + 0.03, TRIM, null, 0); sb.box(1.04, 2.14, 0.1, 0, 1.09 + PORCH_Y, zf + 0.06, 0x5f8f8a, null, 0);
-  for (const [dx, dy] of [[-0.24, 0.55], [0.24, 0.55], [-0.24, 1.3], [0.24, 1.3]]) sb.box(0.36, 0.6, 0.03, dx, dy + PORCH_Y, zf + 0.115, 0x568580, null, 0);
+  sb.box(1.24, 2.28, 0.1, 0, 1.14 + PORCH_Y, zf + 0.03, TRIM, null, 0); sb.box(1.04, 2.14, 0.1, 0, 1.09 + PORCH_Y, zf + 0.06, DOOR, null, 0);
+  for (const [dx, dy] of [[-0.24, 0.55], [0.24, 0.55], [-0.24, 1.3], [0.24, 1.3]]) sb.box(0.36, 0.6, 0.03, dx, dy + PORCH_Y, zf + 0.115, dk(DOOR), null, 0);
   sb.sph(0.045, 0.38, 1.1 + PORCH_Y, zf + 0.14, 0xe0b85a, 1, 1, 1, 8, 0);
   sb.add(new THREE.CircleGeometry(0.2, 16), T(0, 1.86 + PORCH_Y, zf + 0.115), 0xf6dfa0, 0);
   // windows
   const glass = new THREE.MeshStandardMaterial({ color: 0x9cc8e0, roughness: 0.15, metalness: 0.1, emissive: 0xffc46a, emissiveIntensity: 0 });
-  glass.userData.e = 1.6; world.nightMats.push(glass);
+  glass.userData.e = 1.6; if (first) world.nightMats.push(glass);
   const gl = [];
   for (const wx of [-2.75, 2.75]) {
     const wy = 1.85;
     sb.box(1.5, 1.42, 0.1, wx, wy, zf + 0.02, TRIM, null, 0);
     const g = new THREE.PlaneGeometry(1.3, 1.22); g.translate(wx, wy, zf + 0.075); gl.push(g);
     sb.box(0.05, 1.22, 0.04, wx, wy, zf + 0.09, TRIM, null, 0); sb.box(1.3, 0.05, 0.04, wx, wy, zf + 0.09, TRIM, null, 0);
-    for (const s of [-1, 1]) { sb.box(0.5, 1.42, 0.05, wx + s * 1.02, wy, zf + 0.04, 0x6f93a8); for (let k = 0; k < 6; k++) sb.box(0.4, 0.03, 0.02, wx + s * 1.02, wy - 0.55 + k * 0.22, zf + 0.075, 0x628598, null, 0); }
+    for (const s of [-1, 1]) { sb.box(0.5, 1.42, 0.05, wx + s * 1.02, wy, zf + 0.04, SHUT); for (let k = 0; k < 6; k++) sb.box(0.4, 0.03, 0.02, wx + s * 1.02, wy - 0.55 + k * 0.22, zf + 0.075, dk(SHUT), null, 0); }
     sb.box(1.7, 0.07, 0.2, wx, wy - 0.75, zf + 0.08, TRIM, null, 0);
   }
   for (const sx of [-1, 1]) { const g = new THREE.CircleGeometry(0.4, 16); g.rotateY(sx * Math.PI / 2); g.translate(sx * (hw + 0.055), h + 0.85, zc); gl.push(g); }
-  const gm = new THREE.Mesh(mergeGeometries(gl), glass); scene.add(gm);
+  const gm = new THREE.Mesh(mergeGeometries(gl), glass); if (first) scene.add(gm);
   // porch
   sb.box(9.8, PORCH_Y, 2.05, 0, PORCH_Y / 2, -5.93, 0xa9825c, null, 0);
   for (let i = 0; i < 20; i++) sb.box(0.46, 0.02, 2.05, -4.66 + i * 0.49, PORCH_Y + 0.005, -5.93, r.pick([0xb38a62, 0xa67e58, 0xba9068]), null, 0.03);
@@ -380,13 +383,14 @@ function buildHouse(scene, world) {
   tiles(-5.15, 5.15, h + 0.1, zf - 0.02, 1, 0.19, 2.5, 5, 30);
   // wall lantern
   sb.box(0.12, 0.2, 0.12, 0.95, 2.1, zf + 0.12, 0x3a3a3a);
-  const lampM = new THREE.MeshStandardMaterial({ color: 0xfff0c8, emissive: 0xffc070, emissiveIntensity: 0, roughness: 0.4 }); lampM.userData.e = 4; world.nightMats.push(lampM);
-  const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 6), lampM); lamp.position.set(0.95, 2.02, zf + 0.14); scene.add(lamp);
-  const pl2 = new THREE.PointLight(0xffb866, 0, 11, 1.6); pl2.position.set(0, 2.3, -5.6); pl2.userData.i = 14; scene.add(pl2); world.lamps.push(pl2);
+  const lampM = new THREE.MeshStandardMaterial({ color: 0xfff0c8, emissive: 0xffc070, emissiveIntensity: 0, roughness: 0.4 }); lampM.userData.e = 4; if (first) world.nightMats.push(lampM);
+  const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 6), lampM); lamp.position.set(0.95, 2.02, zf + 0.14); if (first) scene.add(lamp);
+  const pl2 = new THREE.PointLight(0xffb866, 0, 11, 1.6); pl2.position.set(0, 2.3, -5.6); pl2.userData.i = 14; if (first) { scene.add(pl2); world.lamps.push(pl2); }
   // welcome mat + hose barrel
   sb.box(0.9, 0.02, 0.5, 0, PORCH_Y + 0.012, -6.4, 0xb8704a);
   sb.lathe([[0.001, 0], [0.26, 0], [0.3, 0.3], [0.26, 0.62], [0.24, 0.62], [0.24, 0.56]], 5.6, 0, -6.5, 0x7a5a40, 12); sb.cyl(0.24, 0.24, 0.02, 5.6, 0.55, -6.5, 0x6aa0c0, 12);
-  const m = sb.mesh(propMat2); scene.add(m);
+  if (world.houseMesh) { scene.remove(world.houseMesh); world.houseMesh.geometry.dispose(); }
+  const m = sb.mesh(propMat2); scene.add(m); world.houseMesh = m;
 }
 
 function buildPond(grp, sb, world, addSpot, zr) {
@@ -462,6 +466,7 @@ function buildServices(scene, world) {
     const f2 = new THREE.Mesh(new THREE.BoxGeometry(0.015, 0.09, 0.12), f1.material); f2.position.set(0, 0.22, 0.06); flag.add(f2); f1.castShadow = f2.castShadow = true;
     scene.add(flag); world.mailFlag = flag;
     thing('mail', x, z, 0.36, 1.6, [0, 0.8], 1.75); }
+  thing('house', 0, -6.8, 0.6, 2.5, [0, 1.2], 2.7); // the front door: repaint the house
 }
 
 function buildScarecrow(sb, x, z) {
