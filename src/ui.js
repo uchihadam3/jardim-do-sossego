@@ -9,7 +9,7 @@ import { DECO } from './decor.js';
 import { fabricCanvas } from './character.js';
 import { WARDROBE, WTABS, PALETTE, PATTERNS, HAIR_COLORS } from './wardrobe.js';
 import { FURN, FURN_BY, CATS } from './furncore.js';
-import { ROOMS, WALLS, FLOORS, wallCanvas, floorCanvas } from './house.js';
+import { ROOMS, WALLS, FLOORS, wallCanvas, floorCanvas, FL_GZ, STAIR } from './house.js';
 import { RECIPES, canCook } from './recipes.js';
 import { FRIENDS, heartsOf, HEART_AT } from './visitor.js';
 
@@ -273,7 +273,7 @@ export function createUI({ project, thumbs, audio }) {
   U.setIndoors = (on) => { document.body.classList.toggle('indoors', on); $('#beauty-ic').setAttribute('href', on ? '#i-home' : '#i-flower'); $('#beauty-pill').title = on ? 'Aconchego da casa' : 'Beleza do jardim'; $('#b-shop').title = on ? 'Móveis e decoração' : 'Lojinha'; U.hud(); };
   const hx = (n) => '#' + n.toString(16).padStart(6, '0');
   const palette = (which, val) => `<div class="wpal on">${PALETTE.map((c) => `<button class="swc ${val === c ? 'on' : ''}" data-col="${c}" data-which="${which}" style="background:${hx(c)}" aria-label="Cor"></button>`).join('')}<label class="swc pick" title="Qualquer cor"><input type="color" data-which="${which}" value="${hx(val ?? 0xffffff)}" aria-label="Escolher qualquer cor"></label></div>`;
-  let fTab = 'moveis', fCat = null, stKind = 'w'; const stUrl = {};
+  let fTab = 'moveis', fCat = null, stKind = 'w', cmapUp = null; const stUrl = {};
   const stPic = (kind, id, c) => { const k = kind + id + c; if (!stUrl[k]) { const src = kind === 'w' ? wallCanvas(id, c) : floorCanvas(id, c), cv = document.createElement('canvas'); cv.width = 120; cv.height = 90; cv.getContext('2d').drawImage(src, 0, kind === 'w' ? 150 : 0, 256, kind === 'w' ? 192 : 192, 0, 0, 120, 90); stUrl[k] = cv.toDataURL(); } return stUrl[k]; };
   U.furnShop = (tab) => {
     const G = U.game, S = G.state, SH = S.house, lvl = G.level(), home = G.home; if (tab) fTab = tab; let body = '';
@@ -289,9 +289,10 @@ export function createUI({ project, thumbs, audio }) {
         <div class="wtint"><span>Cor ${stKind === 'w' ? 'da parede' : 'do piso'}</span>${palette('st', cur.c)}</div>
         <div class="dgrid">${defs.map((d) => { const has = own.includes(d.id), locked = !has && lvl < d.lvl; return `<button class="dcard stcard ${locked ? 'lk' : ''} ${cur.p === d.id ? 'on' : ''}" data-st="${d.id}"><div class="th"><i style="background-image:url(${stPic(stKind, d.id, cur.p === d.id ? cur.c : d.c)})"></i></div><b>${d.name}</b><span class="dprice ${has ? 'have' : ''}">${cur.p === d.id ? 'Em uso aqui' : has ? 'Usar aqui' : locked ? 'Nível ' + d.lvl : `${ICON('coin')}${d.price}`}</span></button>`; }).join('')}</div>`; }
     else { const here = home.roomOf(), can = home.H.buyable(); let cells = '';
-      for (let gz = -2; gz <= 0; gz++) for (let gx = -1; gx <= 2; gx++) { const r = ROOMS.find((q) => q.gx === gx && q.gz === gz), own = SH.rooms.includes(r.id), buy = can.includes(r);
-        cells += `<button class="croom ${own ? 'own' : buy ? 'can' : ''} ${r === here ? 'here' : ''}" data-room="${r.id}" ${own || !buy ? 'disabled' : ''} title="${r.desc}">${r.name}<small>${own ? `+${home.comfort(r.id)}` : buy ? (lvl < r.lvl ? 'Nível ' + r.lvl : ICON('coin') + r.cost) : ICON('lock')}</small></button>`; }
-      body = `<p class="hint">A casa cresce cômodo por cômodo, sempre encostado num que você já tem. A porta da frente fica embaixo, na Sala.</p><div class="cmap">${cells}</div>
+      const hasUp = SH.rooms.includes('hall2'); if (cmapUp === null || !hasUp) cmapUp = hasUp && here.up ? 1 : 0; const g0 = cmapUp ? FL_GZ : 0;
+      for (let gz = g0 - 2; gz <= g0; gz++) for (let gx = -1; gx <= 2; gx++) { const r = ROOMS.find((q) => q.gx === gx && q.gz === gz); if (!r) { cells += '<span class="croom none"></span>'; continue; } const own = SH.rooms.includes(r.id), buy = can.includes(r);
+        cells += `<button class="croom ${own ? 'own' : buy ? 'can' : ''} ${r === here ? 'here' : ''}" data-room="${r.id}" ${own || !buy ? 'disabled' : ''} title="${r.desc}">${r.id === 'hall2' ? 'Corredor' : r.name}<small>${own ? `+${home.comfort(r.id)}` : buy ? (lvl < r.lvl ? 'Nível ' + r.lvl : ICON('coin') + r.cost) : ICON('lock')}</small></button>`; }
+      body = `<p class="hint">${cmapUp ? 'O andar de cima cresce do mesmo jeito, a partir do corredor da escada.' : 'A casa cresce cômodo por cômodo, sempre encostado num que você já tem. A porta da frente fica embaixo, na Sala.'}</p>${hasUp ? `<div class="chipsrow in"><button class="fchip ${cmapUp ? '' : 'on'}" data-fl="0">Térreo</button><button class="fchip ${cmapUp ? 'on' : ''}" data-fl="1">Andar de cima</button></div>` : ''}<div class="cmap">${cells}</div>
         <div class="list">${can.map((r) => `<div class="item"><div><b>${r.name}</b><small>${r.desc}</small></div><button class="btn" data-room="${r.id}" ${S.coins >= r.cost && lvl >= r.lvl ? '' : 'disabled'}>${lvl < r.lvl ? 'Nível ' + r.lvl : ICON('coin') + r.cost}</button></div>`).join('')}</div>`; }
     const sc = modal.querySelector('.panel.furn'), top = sc && U._fk === fTab + fCat + stKind ? sc.scrollTop : 0; U._fk = fTab + fCat + stKind;
     openModal(`<div class="p-h"><h2>A casa da Eliane</h2><span class="wallet">${ICON('coin')}${S.coins}</span><button class="x" data-close aria-label="Fechar">${ICON('x')}</button></div>
@@ -305,6 +306,7 @@ export function createUI({ project, thumbs, audio }) {
     const stNow = () => { const st = home.H.style(home.roomOf()); return (stKind === 'w' ? st.wall : st.floor).p; };
     modal.querySelectorAll('[data-col]').forEach((b) => (b.onclick = () => { home.style(stKind, home.roomOf().id, stNow(), +b.dataset.col); U.furnShop(); }));
     modal.querySelectorAll('input[type=color]').forEach((b) => { b.onchange = () => { home.style(stKind, home.roomOf().id, stNow(), parseInt(b.value.slice(1), 16)); U.furnShop(); }; });
+    modal.querySelectorAll('[data-fl]').forEach((b) => (b.onclick = () => { click(); cmapUp = +b.dataset.fl; U.furnShop(); }));
     modal.querySelectorAll('[data-room]').forEach((b) => (b.onclick = () => { click(); U.roomOffer(ROOMS.find((r) => r.id === b.dataset.room)); }));
   };
   U.roomOffer = (r) => { const G = U.game, lvl = G.level(); if (lvl < r.lvl) { U.toast(`${r.name} chega no nível ${r.lvl}`, 'warn'); return; } U.zoneOffer({ name: r.name, desc: r.desc, cost: r.cost }, G.state.coins >= r.cost, () => G.home.buyRoom(r.id), 'Construir este cômodo'); };
@@ -453,7 +455,7 @@ export function createUI({ project, thumbs, audio }) {
     const S = U.game.state, inside = U.game.inside;
     for (const r of ROOMS) { let b = roomTags[r.id]; const show = inside && U.game.home.H.tags.includes(r); if (!show) { if (b) b.hidden = true; continue; }
       if (!b) { b = roomTags[r.id] = el('button', 'ztag rtag', `${ICON('home')}<small>${ICON('coin')}${r.cost}</small>`); b.title = r.name; b.setAttribute('aria-label', `${r.name}: ${r.cost} moedas`); b.onclick = () => { click(); U.roomOffer(r); }; tags.appendChild(b); }
-      const p = project(new V3(r.cx, 0.6, r.cz)); b.hidden = !p.vis; if (p.vis) { b.style.transform = `translate(-50%,-100%) translate(${p.x.toFixed(1)}px,${p.y.toFixed(1)}px)`; b.classList.toggle('can', S.coins >= r.cost && U.game.level() >= r.lvl); } }
+      const p = r.id === 'hall2' ? project(new V3((STAIR.x0 + STAIR.x1) / 2, 0.9, (STAIR.z0 + STAIR.z1) / 2)) : project(new V3(r.cx, 0.6, r.cz)); b.hidden = !p.vis || (r.id !== 'hall2' && !!r.up !== (U.game.gp.z > 100)); if (p.vis) { b.style.transform = `translate(-50%,-100%) translate(${p.x.toFixed(1)}px,${p.y.toFixed(1)}px)`; b.classList.toggle('can', S.coins >= r.cost && U.game.level() >= r.lvl); } }
     const gp = U.game.gp;
     for (const z of zones) { const b = tagEls[z.id]; if (!b) continue; if (inside || S.zones.includes(z.id) || Math.hypot(z.tag[0] - gp.x, z.tag[1] - gp.z) > 19) { b.hidden = true; continue; }
       const p = project(new V3(z.tag[0], z.id === 1 ? 2.25 : 1.75, z.tag[1])); b.hidden = !p.vis; if (p.vis) { b.style.transform = `translate(-50%,-100%) translate(${p.x.toFixed(1)}px,${p.y.toFixed(1)}px)`; b.classList.toggle('can', S.coins >= z.cost); } }

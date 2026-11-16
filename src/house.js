@@ -1,6 +1,7 @@
 // The inside of Eliane's house: a doll's house she can walk in, enlarge room by room and furnish as she likes.
 // It lives in its own scene. Rooms sit on a grid of cells; walls between two rooms she owns get a doorway.
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { SB, propMat } from './world.js';
 import { FURN_BY, buildFurn, ROOM_H } from './furncore.js';
 import './furniture1.js';
@@ -10,6 +11,10 @@ import { mulberry, clamp, lerp, TAU, T, RY, mul } from './util.js';
 
 const V3 = THREE.Vector3;
 export const CW = 6.4, CD = 5.6, WT = 0.16, DOOR_W = 1.3, DOOR_H = 2.15, INDOOR_SPOTS = 180;
+// The second floor is a map of its own, far from the ground floor (so everything stays flat: walking, furniture, walls), joined to it by the staircase.
+export const FL_GZ = 40, FL_DZ = FL_GZ * CD, FL_H = 3.0;
+// the staircase: a switchback in the back-left corner of the Sala (and the well it comes out of upstairs). Local to the room centre.
+export const STAIR = { x0: -CW / 2 + WT, x1: -0.72, z0: -CD / 2 + WT, z1: -0.72, zA: -1.2, zB: -2.16, zM: -1.68, xT: -1.87, run: 0.23, rise: 0.25 };
 // gx, gz: cell on the grid (the living room is 0,0; its front door looks south, +z)
 export const ROOMS = [
   { id: 'sala', name: 'Sala', gx: 0, gz: 0, cost: 0, lvl: 1, desc: 'O coração da casa.' },
@@ -24,6 +29,15 @@ export const ROOMS = [
   { id: 'musica', name: 'Sala de música', gx: 1, gz: -2, cost: 21000, lvl: 17, desc: 'Um piano pede uma sala só para ele.' },
   { id: 'solario', name: 'Solário das orquídeas', gx: -1, gz: -2, cost: 28000, lvl: 19, glass: true, desc: 'Outra sala de vidro, para as plantas mais preciosas.', floor: ['hidraulico', 0x7fa8a0] },
   { id: 'salao', name: 'Salão de festas', gx: 2, gz: -2, cost: 36000, lvl: 20, desc: 'O maior cômodo de todos, para dançar.', floor: ['marmore', 0xf2efe8] },
+  // upstairs (up: 1): the same grid, forty rows away. NEW ROOMS GO AT THE END.
+  { id: 'hall2', name: 'Segundo andar', up: 1, gx: 0, gz: FL_GZ, cost: 9000, lvl: 8, desc: 'Uma escada de madeira sobe da Sala para um andar inteiro novo, com mais sete cômodos para construir.' },
+  { id: 'suite', name: 'Suíte', up: 1, gx: 0, gz: FL_GZ - 1, cost: 12000, lvl: 10, desc: 'O quarto dos sonhos, lá no alto, com vista para o jardim.' },
+  { id: 'escritorio', name: 'Escritório', up: 1, gx: 1, gz: FL_GZ, cost: 14000, lvl: 11, desc: 'Para cuidar das contas do jardim e escrever cartas.', floor: ['taco', 0xb08252] },
+  { id: 'closet', name: 'Closet', up: 1, gx: 1, gz: FL_GZ - 1, cost: 16000, lvl: 12, desc: 'Um cômodo inteiro só para as roupas e os sapatos.' },
+  { id: 'banho2', name: 'Banheiro de cima', up: 1, gx: -1, gz: FL_GZ - 1, cost: 17000, lvl: 13, desc: 'Banho demorado com a janela aberta para as árvores.', wall: ['azulejo', 0xd8e6dc], floor: ['ceramica', 0xe8e4da] },
+  { id: 'netos', name: 'Quarto das crianças', up: 1, gx: -1, gz: FL_GZ, cost: 19000, lvl: 14, desc: 'Para quando a criançada vem dormir na casa da vó.' },
+  { id: 'leitura', name: 'Cantinho de leitura', up: 1, gx: 0, gz: FL_GZ - 2, cost: 24000, lvl: 16, desc: 'Uma poltrona, uma manta e a chuva lá fora.' },
+  { id: 'terraco', name: 'Terraço envidraçado', up: 1, gx: 2, gz: FL_GZ, cost: 30000, lvl: 18, glass: true, desc: 'Vidro por todos os lados e o jardim inteiro lá embaixo.', floor: ['pedra', 0xc9c1b4] },
 ];
 export const ROOM_BY = Object.fromEntries(ROOMS.map((r) => [r.id, r]));
 for (const r of ROOMS) { r.cx = r.gx * CW; r.cz = r.gz * CD; }
@@ -76,9 +90,32 @@ const SIDE = [{ dx: 0, dz: -1, ry: 0, len: CW }, { dx: 1, dz: 0, ry: -Math.PI / 
 const quads = (list, len) => { const pos = [], uv = [], idx = []; for (const [x0, x1, y0, y1] of list) { const s = pos.length / 3; pos.push(x0, y0, 0, x1, y0, 0, x1, y1, 0, x0, y1, 0); for (const [x, y] of [[x0, y0], [x1, y0], [x1, y1], [x0, y1]]) uv.push((x + len / 2) / 1.4, y / ROOM_H); idx.push(s, s + 1, s + 2, s, s + 2, s + 3); }
   const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals(); return g; };
 
+// The staircase. (ox, oy, oz) = centre of its room at floor level; `stub` adds the bit of upper floor it reaches on the ground map.
+function buildStairs(sb, ox, oy, oz, stub) {
+  const WOODC = 0x9a6a44, WHITE = 0xfbf6ec, RUG = 0xa8434a, { x0, x1, z0, z1, zA, zB, zM, xT, run, rise } = STAIR, lw = 0.94, ly = 6 * rise, slope = Math.atan2(rise, run);
+  const B = (w, h, d, x, y, z, c, rot) => sb.box(w, h, d, ox + x, oy + y, oz + z, c, rot, 0), RZm = (a) => new THREE.Matrix4().makeRotationZ(a);
+  const post = (x, y, z, h = 1.12) => { B(0.11, h, 0.11, x, y + h / 2, z, WHITE); B(0.15, 0.04, 0.15, x, y + h + 0.02, z, WHITE); sb.sph(0.07, ox + x, oy + y + h + 0.1, oz + z, WOODC, 1, 1, 1, 8, 0); };
+  for (let i = 0; i < 5; i++) { const x = x1 - (i + 0.5) * run, y = (i + 1) * rise; B(run, y, lw, x, y / 2, zA, WHITE); B(run + 0.035, 0.045, lw + 0.03, x + 0.017, y + 0.022, zA, WOODC); B(run + 0.037, 0.012, 0.52, x + 0.017, y + 0.05, zA, RUG); B(0.035, 0.86, 0.035, x, y + 0.045 + 0.43, z1 - 0.05, WHITE); }
+  B(xT - x0, ly, z1 - z0, (x0 + xT) / 2, ly / 2, (z0 + z1) / 2, WHITE); B(xT - x0 + 0.03, 0.045, z1 - z0 + 0.03, (x0 + xT) / 2 + 0.015, ly + 0.022, (z0 + z1) / 2, WOODC); B(0.56, 0.012, z1 - z0 - 0.5, (x0 + xT) / 2, ly + 0.05, (z0 + z1) / 2, RUG);
+  for (let i = 0; i < 5; i++) { const x = xT + (i + 0.5) * run, y = ly + (i + 1) * rise; B(run, y, lw, x, y / 2, zB, WHITE); B(run + 0.035, 0.045, lw + 0.03, x - 0.017, y + 0.022, zB, WOODC); B(run + 0.037, 0.012, 0.52, x - 0.017, y + 0.05, zB, RUG); B(0.035, 0.86, 0.035, x, y + 0.045 + 0.43, zM - 0.03, WHITE); }
+  // handrails: up the first flight, along the landing, up the second flight
+  B(5 * Math.hypot(run, rise) + 0.12, 0.06, 0.075, x1 - 2.5 * run, 3 * rise + 0.045 + 0.89, z1 - 0.05, WOODC, RZm(-slope));
+  B(xT - x0, 0.06, 0.075, (x0 + xT) / 2, ly + 0.96, z1 - 0.05, WOODC); for (let x = x0 + 0.14; x < xT - 0.08; x += 0.17) B(0.035, 0.9, 0.035, x, ly + 0.045 + 0.45, z1 - 0.05, WHITE);
+  B(5 * Math.hypot(run, rise) + 0.12, 0.06, 0.075, xT + 2.5 * run, ly + 3 * rise + 0.045 + 0.89, zM - 0.03, WOODC, RZm(slope));
+  post(x1 + 0.03, 0, z1 - 0.05, 1.2); post(xT, ly, z1 - 0.05, 1.06); post(xT, ly, zM - 0.03, 1.06);
+  // panelling on the side that faces the room
+  for (let k = 0; k < 3; k++) B(0.3, 0.6, 0.012, x0 + 0.3 + k * 0.36, 0.7, z1 + 0.006, 0xf1eadc);
+  B(xT - x0, 0.1, 0.02, (x0 + xT) / 2, 0.05, z1 + 0.01, WHITE);
+  if (stub) { B(0.9, 0.12, lw + 0.06, x1 + 0.45, FL_H - 0.06, zB, WOODC); B(0.9, 0.06, 0.075, x1 + 0.45, FL_H + 0.96, zM - 0.03, WOODC); for (let x = x1 + 0.1; x < x1 + 0.9; x += 0.17) B(0.035, 0.9, 0.035, x, FL_H + 0.45, zM - 0.03, WHITE); post(x1 + 0.9, FL_H, zM - 0.03, 1.06); }
+}
+// a floor with the stairwell cut out of its back-left corner (same texture mapping as a whole floor)
+function floorWithWell() { const { x1, z1 } = STAIR, parts = [[x1, CW / 2, -CD / 2, CD / 2], [-CW / 2, x1, z1, CD / 2]], gs = [];
+  for (const [a, b, c, d] of parts) { const g = new THREE.PlaneGeometry(b - a, d - c), uv = g.attributes.uv, pos = g.attributes.position; g.translate((a + b) / 2, -(c + d) / 2, 0); for (let i = 0; i < pos.count; i++) uv.setXY(i, (pos.getX(i) + CW / 2) / CW, (pos.getY(i) + CD / 2) / CD); gs.push(g); }
+  return mergeGeometries(gs); }
+
 export function createHouse() {
   const scene = new THREE.Scene(), H = { scene, items: [], rooms: [], walls: [], spots: [], tags: [] };
-  scene.background = new THREE.Color(0xcfe3ee);
+  scene.background = new THREE.Color(0xcfe3ee); scene.fog = new THREE.Fog(0xcfe3ee, 70, 150); // the other floor is far away and out of sight
   const hemi = new THREE.HemisphereLight(0xfff6e8, 0xa89a88, 1.05); scene.add(hemi);
   const sun = new THREE.DirectionalLight(0xfff0dc, 1.7); sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.03; scene.add(sun, sun.target);
   const lamps = [0, 1, 2].map(() => { const l = new THREE.PointLight(0xffc888, 0, 7.5, 1.6); scene.add(l); return l; });
@@ -91,7 +128,17 @@ export function createHouse() {
   H.owned = (id) => own.has(id);
   H.roomAt = (x, z) => { const r = cellRoom(Math.round(x / CW), Math.round(z / CD)); return has(r) ? r : null; };
   H.neighbour = (r, side) => cellRoom(r.gx + SIDE[side].dx, r.gz + SIDE[side].dz);
-  H.buyable = () => ROOMS.filter((r) => !own.has(r.id) && [0, 1, 2, 3].some((s) => has(H.neighbour(r, s))));
+  H.buyable = () => ROOMS.filter((r) => !own.has(r.id) && (r.id === 'hall2' || [0, 1, 2, 3].some((s) => has(H.neighbour(r, s)))));
+  H.upAt = (z) => z > FL_DZ / 2; H.stairs = () => own.has('hall2');
+  // the corner the staircase takes on each floor, and the bit in front of it that must stay clear
+  const stairRects = () => (own.has('hall2') ? [[STAIR.x0 - WT, STAIR.x1, STAIR.z0 - WT, STAIR.z1], [STAIR.x0 - WT, STAIR.x1, FL_DZ + STAIR.z0 - WT, FL_DZ + STAIR.z1]] : []);
+  const stairWays = () => (own.has('hall2') ? [[STAIR.x1, STAIR.x1 + 0.62, STAIR.zM, STAIR.z1], [STAIR.x1, STAIR.x1 + 0.62, FL_DZ + STAIR.z0, FL_DZ + STAIR.zM]] : []);
+  const inStairs = (x, z, pad = 0) => stairRects().some((o) => x > o[0] - pad && x < o[1] + pad && z > o[2] - pad && z < o[3] + pad);
+  // which floor is on show: the lawn, the sun and the shadows move with it
+  H.level = 0; H.floors = [[0, 0, 0, 0], [0, 0, 0, 0]];
+  H.setLevel = (lv, force) => { if (lv === H.level && !force) return; H.level = lv; const b = H.floors[lv], ok = b[0] < b[1], cx = ok ? (b[0] + b[1]) / 2 : 0, cz = ok ? (b[2] + b[3]) / 2 : lv * FL_DZ, ext = (ok ? Math.max(b[1] - b[0], b[3] - b[2]) / 2 : 4) + 3;
+    H.bounds = ok ? b : [-CW / 2, CW / 2, lv * FL_DZ - CD / 2, lv * FL_DZ + CD / 2]; lawn.position.set(cx, lv ? -FL_H - 0.06 : -0.06, cz);
+    sun.position.set(cx + 7, 14, cz + 9); sun.target.position.set(cx, 0, cz); sun.target.updateMatrixWorld(); const sc = sun.shadow.camera; sc.left = -ext; sc.right = ext; sc.top = ext; sc.bottom = -ext; sc.near = 1; sc.far = 50; sc.updateProjectionMatrix(); };
   const wallOf = (rid, side) => H.walls.find((w) => w.room.id === rid && w.side === side);
   H.wallOf = wallOf;
   H.style = (r) => ({ wall: (S.walls[r.id] ||= { p: (r.wall || ['liso'])[0], c: (r.wall || [0, 0xf3ead8])[1] ?? 0xf3ead8 }), floor: (S.floors[r.id] ||= { p: (r.floor || ['tabuas'])[0], c: (r.floor || [0, 0xcda674])[1] ?? 0xcda674 }) });
@@ -100,9 +147,20 @@ export function createHouse() {
   H.rebuild = () => {
     for (const w of H.walls) for (const it of H.items) if (it.wall === w) w.group.remove(it.group, it.pick);
     shell.traverse((o) => { if (o.isMesh && o.geometry && !o.userData.keep) o.geometry.dispose(); }); shell.clear(); H.walls.length = 0; H.rooms.length = 0;
-    own = new Set(S.rooms); const sb = new SB(41), WOOD = 0xb08252, TRIM = 0xfbf6ec; let x0 = 1e9, x1 = -1e9, z0 = 1e9, z1 = -1e9;
-    for (const r of ROOMS) { if (!own.has(r.id)) continue; const st = H.style(r); H.rooms.push(r); x0 = Math.min(x0, r.cx - CW / 2); x1 = Math.max(x1, r.cx + CW / 2); z0 = Math.min(z0, r.cz - CD / 2); z1 = Math.max(z1, r.cz + CD / 2);
-      const fl = new THREE.Mesh(new THREE.PlaneGeometry(CW, CD), new THREE.MeshStandardMaterial({ map: tex('f', st.floor.p, st.floor.c).clone(), roughness: st.floor.p === 'marmore' || st.floor.p === 'ceramica' ? 0.35 : 0.85 }));
+    own = new Set(S.rooms); const sb = new SB(41), WOOD = 0xb08252, TRIM = 0xfbf6ec, bb = [[1e9, -1e9, 1e9, -1e9], [1e9, -1e9, 1e9, -1e9]];
+    for (const r of ROOMS) { if (!own.has(r.id)) continue; const st = H.style(r), b = bb[r.up ? 1 : 0]; H.rooms.push(r); b[0] = Math.min(b[0], r.cx - CW / 2); b[1] = Math.max(b[1], r.cx + CW / 2); b[2] = Math.min(b[2], r.cz - CD / 2); b[3] = Math.max(b[3], r.cz + CD / 2);
+      if (r.up) { const EXT = 0xefe6d2; // the storey underneath, so the upper floor does not hang in the air
+        if (r.id === 'hall2') { const { x0: sx0, x1: sx1, z1: sz1 } = STAIR, y = -FL_H / 2 - 0.03; sb.box(CW / 2 - sx1, FL_H, CD, r.cx + (sx1 + CW / 2) / 2, y, r.cz, EXT, null, 0); sb.box(sx1 + CW / 2, FL_H, CD / 2 - sz1, r.cx + (sx1 - CW / 2) / 2, y, r.cz + (sz1 + CD / 2) / 2, EXT, null, 0);
+          sb.box(sx1 + CW / 2, FL_H, WT, r.cx + (sx1 - CW / 2) / 2, y, r.cz - CD / 2 + WT / 2, EXT, null, 0); sb.box(WT, FL_H, sz1 + CD / 2, r.cx - CW / 2 + WT / 2, y, r.cz + (sz1 - CD / 2) / 2, EXT, null, 0); sb.box(sx1 - sx0, 0.04, sz1 + CD / 2 - WT, r.cx + (sx0 + sx1) / 2, -FL_H + 0.02, r.cz + (sz1 - CD / 2 + WT) / 2, 0xb98a5c, null, 0);
+          buildStairs(sb, r.cx, -FL_H, r.cz, false);
+          // the railing round the well
+          const rail = (xa, za, xb, zb) => { const L = Math.hypot(xb - xa, zb - za), along = Math.abs(xb - xa) > Math.abs(zb - za); sb.box(along ? L : 0.075, 0.06, along ? 0.075 : L, r.cx + (xa + xb) / 2, 0.96, r.cz + (za + zb) / 2, 0x9a6a44, null, 0); for (let k = 0.12; k < L - 0.05; k += 0.17) sb.box(0.035, 0.93, 0.035, r.cx + xa + ((xb - xa) * k) / L, 0.465, r.cz + za + ((zb - za) * k) / L, TRIM, null, 0); };
+          rail(sx0, sz1 + 0.05, sx1 + 0.05, sz1 + 0.05); rail(sx1 + 0.05, STAIR.zM, sx1 + 0.05, sz1 + 0.05); for (const [px, pz] of [[sx1 + 0.05, sz1 + 0.05], [sx1 + 0.05, STAIR.zM], [sx0 + 0.06, sz1 + 0.05]]) { sb.box(0.11, 1.08, 0.11, r.cx + px, 0.54, r.cz + pz, TRIM, null, 0); sb.sph(0.07, r.cx + px, 1.17, r.cz + pz, 0x9a6a44, 1, 1, 1, 8, 0); } }
+        else sb.box(CW, FL_H, CD, r.cx, -FL_H / 2 - 0.03, r.cz, EXT, null, 0);
+        for (let side = 0; side < 4; side++) if (!has(H.neighbour(r, side))) { const sd = SIDE[side], R = new THREE.Matrix4().makeRotationY(sd.ry), P = new V3(r.cx + sd.dx * (CW / 2 + 0.012), -FL_H + 1.5, r.cz + sd.dz * (CD / 2 + 0.012)); // windows of the floor below, seen from outside
+          for (const t of [-1.6, 1.6]) { const v = new V3(t, 0, 0).applyMatrix4(R).add(P); sb.box(1.25, 1.2, 0.03, v.x, v.y, v.z, TRIM, R, 0); sb.box(1.05, 1.0, 0.04, v.x, v.y, v.z, 0x9cc4dd, R, 0); } } }
+      else if (r.id === 'sala' && own.has('hall2')) buildStairs(sb, r.cx, 0, r.cz, true);
+      const fl = new THREE.Mesh(r.id === 'hall2' ? floorWithWell() : new THREE.PlaneGeometry(CW, CD), new THREE.MeshStandardMaterial({ map: tex('f', st.floor.p, st.floor.c).clone(), roughness: st.floor.p === 'marmore' || st.floor.p === 'ceramica' ? 0.35 : 0.85 }));
       fl.material.map.repeat.set(CW / 1.6, CD / 1.6); fl.material.map.needsUpdate = true; fl.rotation.x = -Math.PI / 2; fl.position.set(r.cx, 0, r.cz); fl.receiveShadow = true; fl.userData.floor = r; shell.add(fl); r.floorMesh = fl;
       for (let side = 0; side < 4; side++) { const sd = SIDE[side], nb = H.neighbour(r, side), door = has(nb), entrance = r.id === 'sala' && side === 2, len = sd.len, glass = r.glass && !door && !entrance;
         const g = new THREE.Group(); g.position.set(r.cx + sd.dx * (CW / 2 - WT / 2), 0, r.cz + sd.dz * (CD / 2 - WT / 2)); g.rotation.y = sd.ry; shell.add(g);
@@ -122,8 +180,7 @@ export function createHouse() {
           eb.box(DOOR_W, DOOR_H, 0.05, 0, DOOR_H / 2, -0.02, 0x5f8f8a); for (const [dx, dy] of [[-0.3, 0.55], [0.3, 0.55], [-0.3, 1.5], [0.3, 1.5]]) eb.box(0.44, 0.72, 0.02, dx, dy, 0.012, 0x548079); eb.sph(0.035, 0.5, 1.05, 0.04, 0xe0b85a, 1, 1, 1, 8); g.add(eb.mesh(propMat));
           sb.box(1.0, 0.025, 0.6, 0, 0.013, z - 0.55, 0xb8704a); sb.box(0.86, 0.03, 0.46, 0, 0.014, z - 0.55, 0xc8845a); for (const s of [-1, 1]) sb.box(0.1, 0.18, WT, s * (hw + 0.05), 0.09, z - WT / 2, TRIM); } } }
     if (sb.g.length) shell.add(sb.mesh(propMat));
-    H.bounds = [x0, x1, z0, z1]; const cx = (x0 + x1) / 2, cz = (z0 + z1) / 2, ext = Math.max(x1 - x0, z1 - z0) / 2 + 3;
-    sun.position.set(cx + 7, 14, cz + 9); sun.target.position.set(cx, 0, cz); const sc = sun.shadow.camera; sc.left = -ext; sc.right = ext; sc.top = ext; sc.bottom = -ext; sc.near = 1; sc.far = 50; sc.updateProjectionMatrix();
+    H.floors = bb; H.setLevel(H.level, true); stairPicks.forEach((m, i) => { m.visible = own.has('hall2'); m.position.set((STAIR.x0 + STAIR.x1) / 2, i ? 0.4 : 1.5, i * FL_DZ + (STAIR.z0 + STAIR.z1) / 2); });
     for (const it of H.items) if (it.def.kind === 'wall') attach(it);
     H.nav.invalidate(); H.tags = H.buyable();
   };
@@ -149,11 +206,14 @@ export function createHouse() {
     if (def.kind === 'wall') { let best = null; for (const w of H.walls) { if (w.room !== room) continue; const sd = SIDE[w.side], dist = sd.dx ? Math.abs(room.cx + sd.dx * (CW / 2) - pose.x) : Math.abs(room.cz + sd.dz * (CD / 2) - pose.z); if (!best || dist < best.dist) best = { w, dist }; }
       const w = best.w, sd = SIDE[w.side], along = w.side === 0 ? pose.x - room.cx : w.side === 2 ? room.cx - pose.x : w.side === 1 ? pose.z - room.cz : room.cz - pose.z, lim = w.len / 2 - def.w / 2 - WT, t = clamp(Math.round(along * 8) / 8, -lim, lim), res = { room, side: w.side, t, y: 0, wall: w, ok: true };
       if (w.glass) return { ...res, ok: false, why: 'Na parede de vidro não dá para pendurar.' };
+      { const wp = H.wallPos(room.id, w.side, t).p; if (inStairs(wp.x, wp.z, def.w / 2 + 0.1)) return { ...res, ok: false, why: 'Aí fica a escada.' }; }
       if (w.door && Math.abs(t) < DOOR_W / 2 + def.w / 2 + 0.08) return { ...res, ok: false, why: 'Aí fica a porta.' };
       if (w.window && Math.abs(t) < 0.75 + def.w / 2 + 0.2) return { ...res, ok: false, why: 'Aí fica a janela.' };
       for (const it of others) if (it.def.kind === 'wall' && it.wall === w && Math.abs(it.rec.t - t) < (it.def.w + def.w) / 2 + 0.03) return { ...res, ok: false, why: 'Já tem uma coisa pendurada aí.' };
       return res; }
     const rc = H.rect(def, pose.x, pose.z, pose.r), res = { room, y: 0, ok: true };
+    for (const o of stairRects()) if (overlap(rc, o)) return { ...res, ok: false, why: 'Aí fica a escada.', hit: o };
+    if (def.kind !== 'ceil') for (const o of stairWays()) if (overlap(rc, o)) return { ...res, ok: false, why: 'Deixe a passagem da escada livre.', hit: o };
     if (rc[0] < In[0] - 0.005 || rc[1] > In[1] + 0.005 || rc[2] < In[2] - 0.005 || rc[3] > In[3] + 0.005) return { ...res, ok: false, why: 'Este é grande demais para este cômodo.' };
     if (def.kind === 'rug') return res;
     if (def.kind === 'ceil') { for (const it of others) if (it.def.kind === 'ceil' && overlap(rc, rectOf(it))) return { ...res, ok: false, why: 'Já tem uma coisa pendurada aí.' }; return res; }
@@ -197,10 +257,14 @@ export function createHouse() {
   H.freeSpots = (rec) => { for (const id of rec.sl || []) { const s = H.spots.find((q) => q.id === id); if (s) { s.active = false; s.item = null; s.soil.visible = false; s.pick.visible = false; s.pos.set(0, -30, 0); } } delete rec.sl; };
 
   // ----- walking -----
-  H.blocked = (x, z) => { const r = H.roomAt(x, z); if (!r) return true; const m = WT + 0.2, dx = x - r.cx, dz = z - r.cz;
+  H.blocked = (x, z) => { const r = H.roomAt(x, z); if (!r) return true; if (inStairs(x, z, 0.14)) return true; const m = WT + 0.2, dx = x - r.cx, dz = z - r.cz;
     for (let side = 0; side < 4; side++) { const sd = SIDE[side], d = sd.dx ? CW / 2 - dx * sd.dx : CD / 2 - dz * sd.dz; if (d < m) { const nb = H.neighbour(r, side), along = sd.dx ? dz : dx; if (!(has(nb) && Math.abs(along) < DOOR_W / 2 - 0.22)) return true; } }
     for (const it of H.items) { if (it.def.kind !== 'floor' && !(it.def.kind === 'top' && !(it.rec.y > 0) && it.def.w > 0.3)) continue; const o = rectOf(it), p = 0.17; if (x > o[0] - p && x < o[1] + p && z > o[2] - p && z < o[3] + p) return true; } return false; };
-  H.nav = createNav(H.blocked, { cell: 0.25, x0: -1.5 * CW, z0: -2.5 * CD, nx: Math.round((4 * CW) / 0.25) + 1, nz: Math.round((3 * CD) / 0.25) + 1, guard: 24000 });
+  const navs = [0, 1].map((lv) => createNav(H.blocked, { cell: 0.25, x0: -1.5 * CW, z0: lv * FL_DZ - 2.5 * CD, nx: Math.round((4 * CW) / 0.25) + 1, nz: Math.round((3 * CD) / 0.25) + 1, guard: 24000 }));
+  H.nav = { path: (sx, sz, tx, tz) => navs[H.upAt(sz) ? 1 : 0].path(sx, sz, tx, tz), invalidate: () => navs.forEach((n) => n.invalidate()) };
+  // where she taps to use the stairs, and the way up them (ground-floor coordinates; coming down is the same way backwards, three metres lower, on the upper map)
+  const stairPicks = ['up', 'down'].map((dir, i) => { const m = new THREE.Mesh(new THREE.BoxGeometry(STAIR.x1 - STAIR.x0, i ? 0.8 : 3.0, STAIR.z1 - STAIR.z0), pickMat); m.userData.stairs = dir; m.visible = false; scene.add(m); return m; }); H.stairPicks = stairPicks;
+  H.stairPath = () => { const { x1, zA, zB, xT, rise } = STAIR; return [[x1 + 0.4, 0, zA], [x1, 0, zA], [xT, 5 * rise, zA], [xT - 0.58, 6 * rise, zA], [xT - 0.58, 6 * rise, zB], [xT, 6 * rise, zB], [x1, 11 * rise, zB], [x1 + 0.28, FL_H, zB]]; };
 
   // ----- cosiness -----
   H.comfort = (rid) => { let c = 0; for (const it of H.items) { if (rid) { const r = it.def.kind === 'wall' ? it.rec.room : (H.roomAt(it.rec.x, it.rec.z) || {}).id; if (r !== rid) continue; } c += it.def.comfort || 0; } return c; };
@@ -209,9 +273,9 @@ export function createHouse() {
   // camPos: camera, at: Eliane. Walls that would hide her (or that we would see from behind) step out of the way.
   const sky = new THREE.Color(), dayC = new THREE.Color(0xcfe3ee), duskC = new THREE.Color(0xf2c8a0), nightC = new THREE.Color(0x2a3358), lawnD = new THREE.Color(0x86ad62), lawnN = new THREE.Color(0x2f4a3c);
   H.update = (dt, time, camPos, at, night, hour) => {
-    H.night = night; const d = new V3();
+    H.night = night; const d = new V3(); H.setLevel(H.upAt(at.z) ? 1 : 0);
     for (const w of H.walls) { const cs = d.copy(camPos).sub(w.p).dot(w.n), es = d.copy(at).sub(w.p).dot(w.n); w.group.visible = cs > 0.05 && es > -0.35; }
-    const dusk = clamp(1 - Math.abs(hour - 18.3) / 1.6, 0, 1) * (1 - night); sky.copy(dayC).lerp(duskC, dusk).lerp(nightC, night); scene.background.copy(sky); lawn.material.color.copy(lawnD).lerp(lawnN, night);
+    const dusk = clamp(1 - Math.abs(hour - 18.3) / 1.6, 0, 1) * (1 - night); sky.copy(dayC).lerp(duskC, dusk).lerp(nightC, night); scene.background.copy(sky); scene.fog.color.copy(sky); lawn.material.color.copy(lawnD).lerp(lawnN, night);
     paneMat.color.copy(sky); paneMat.emissive.copy(sky); paneMat.emissiveIntensity = lerp(0.75, 0.25, night);
     hemi.intensity = lerp(1.05, 0.5, night); hemi.color.setHex(0xfff6e8).lerp(new THREE.Color(0xb8c4e8), night * 0.7); sun.intensity = lerp(1.7, 0.28, night); sun.color.setHex(0xfff0dc).lerp(new THREE.Color(0x9ab0e8), night).lerp(duskC, dusk * 0.5);
     // real warm light from the lamps closest to her

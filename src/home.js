@@ -2,7 +2,7 @@
 // wallpapers and floors, sitting on the sofa, sleeping, turning the lamps on... and plants in every corner.
 import * as THREE from 'three';
 import { FURN, FURN_BY, buildFurn } from './furncore.js';
-import { ROOMS, ROOM_BY, WALL_BY, FLOOR_BY, CW, CD } from './house.js';
+import { ROOMS, ROOM_BY, WALL_BY, FLOOR_BY, CW, CD, FL_DZ, FL_H, STAIR } from './house.js';
 import { clamp, easeOutBack } from './util.js';
 import { RECIPE_BY, canCook, STOVES } from './recipes.js';
 import { critterModel } from './critters.js';
@@ -37,7 +37,17 @@ export function attachHome(G, { S, house: H, fx, audio, gardener, ui, addXp, lev
     const p = gardener.group.position; if (inside) { p.set(H.entry.x, 0, H.entry.z); gardener.heading = gardener.targetHeading = Math.PI; } else { p.set(0, 0.18, -5.9); gardener.heading = gardener.targetHeading = 0; }
     gardener.stop(); setScene(inside); fx.setScene(inside ? scene : G.gardenScene, inside); ui.setIndoors(inside); G.refreshMarkers(); audio.sfx('click', 0.5, inside ? 0.8 : 1.1); S.stats.visits = (S.stats.visits || 0) + (inside ? 1 : 0); G.checkQuest(); save(); });
   G.enterHouse = () => { if (G.inside) return; G.walkThen(0, -5.75, () => go(true)); };
-  G.exitHouse = () => { if (!G.inside) return; G.walkThen(H.exit.x, H.exit.z - 0.5, () => go(false)); };
+  G.exitHouse = () => { if (!G.inside) return; if (H.upAt(gardener.group.position.z)) { go(false); return; } G.walkThen(H.exit.x, H.exit.z - 0.5, () => go(false)); }; // from upstairs she just goes down and out
+  // ---------- the staircase ----------
+  // She walks to the foot (or the head) of the stairs, climbs them step by step, and the view changes floor at the end.
+  home.stairs = (dir) => { if (!G.inside || !H.stairs() || G.placing) return false; const gp = gardener.group.position, up = dir === 'up', onUp = H.upAt(gp.z); if (up === onUp) return false;
+    const base = H.stairPath(), pts = (up ? base : base.slice().reverse()).map(([x, y, z]) => new V3(x, up ? y : y - FL_H, z + (up ? 0 : FL_DZ))), len = [0]; for (let i = 1; i < pts.length; i++) len.push(len[i - 1] + pts[i].distanceTo(pts[i - 1]));
+    const total = len[len.length - 1], SPD = 1.15, climb = () => { ui.closeCards(); audio.sfx('step', 0.4); let stepT = 0;
+      G.busy(total / SPD + 0.05, (dt, t) => { const s = Math.min(total, t * SPD); let i = 1; while (i < pts.length - 1 && len[i] < s) i++; const a = pts[i - 1], b = pts[i], k = (s - len[i - 1]) / Math.max(1e-6, len[i] - len[i - 1]);
+        gp.set(a.x + (b.x - a.x) * k, a.y + (b.y - a.y) * k, a.z + (b.z - a.z) * k); G.climbY = gp.y; gardener.targetHeading = Math.atan2(b.x - a.x, b.z - a.z); gardener.state = 'walk'; gardener.speed = SPD; stepT += dt; if (stepT > 0.42) { stepT = 0; audio.sfx('step', 0.3, 0.9 + Math.random() * 0.2); } },
+        () => { const e = pts[pts.length - 1]; gp.copy(e); G.climbY = e.y; gardener.stop(); ui.fade(() => { const dy = up ? -FL_H : FL_H, dz = up ? FL_DZ : -FL_DZ; G.climbY = undefined; gp.y = 0; gp.z += dz; if (G.onWarp) G.onWarp(0, dy, dz); H.setLevel(up ? 1 : 0); G.refreshMarkers(); S.stats.stairs = (S.stats.stairs || 0) + 1;
+            setTimeout(() => G.walkThen(up ? 0.35 : STAIR.x1 + 1.0, up ? FL_DZ + STAIR.zB + 0.75 : STAIR.zA + 0.5, () => {}), 420); }); }); };
+    G.clearTasks(); const s = pts[0]; if (Math.hypot(gp.x - s.x, gp.z - s.z) < 0.25) { climb(); return true; } return G.walkThen(s.x, s.z, climb); };
 
   // ---------- putting things in place ----------
   const snap = (v) => Math.round(v * 8) / 8;
@@ -122,10 +132,12 @@ export function attachHome(G, { S, house: H, fx, audio, gardener, ui, addXp, lev
     if (level() < r.lvl) { audio.sfx('error'); ui.toast(`${r.name} chega no nível ${r.lvl}`, 'warn'); return false; } if (S.coins < r.cost) { audio.sfx('error'); ui.toast(`Faltam ${r.cost - S.coins} moedas para ${r.name}`, 'warn'); return false; }
     S.coins -= r.cost; SH.rooms.push(id); H.rebuild(); if (G.growHouse && G.growHouse()) setTimeout(() => ui.toast('A casa também cresceu por fora. Saia para o jardim para ver!', 'good'), 2600);
     // whatever was hanging where a door now opens goes back to the box
-    let boxed = 0; for (const it of H.items.slice()) { if (it === (G.placing || {}).it) continue; const res = it.def.kind === 'wall' ? (() => { const w = H.wallOf(it.rec.room, it.rec.side); return w && w.door && Math.abs(it.rec.t) < 0.65 + it.def.w / 2 + 0.08 ? { ok: false } : { ok: true }; })() : it.def.kind === 'floor' ? H.check(it.def, { x: it.rec.x, z: it.rec.z, r: it.rec.r }, [it]) : { ok: true };
+    let boxed = 0; for (const it of H.items.slice()) { if (it === (G.placing || {}).it) continue; const res = it.def.kind === 'wall' ? (() => { const w = H.wallOf(it.rec.room, it.rec.side); return w && w.door && Math.abs(it.rec.t) < 0.65 + it.def.w / 2 + 0.08 ? { ok: false } : { ok: true }; })() : it.def.kind === 'floor' || (id === 'hall2' && it.def.kind !== 'top') ? H.check(it.def, { x: it.rec.x, z: it.rec.z, r: it.rec.r }, [it]) : { ok: true };
       if (!res.ok && !hasPlants(it)) { H.freeSpots(it.rec); H.drop(it); SH.items.splice(SH.items.indexOf(it.rec), 1); SH.stored[it.rec.k] = (SH.stored[it.rec.k] || 0) + 1; boxed++; } }
+    for (const it of H.items.slice()) { if (it.def.kind !== 'top' || hasPlants(it)) continue; const res = H.check(it.def, { x: it.rec.x, z: it.rec.z, r: it.rec.r }, [it]); // ornaments left without their table, or in the way of the stairs
+      if (!res.ok || Math.abs((res.y || 0) - (it.rec.y || 0)) > 0.02) { H.freeSpots(it.rec); H.drop(it); SH.items.splice(SH.items.indexOf(it.rec), 1); SH.stored[it.rec.k] = (SH.stored[it.rec.k] || 0) + 1; boxed++; } }
     if (r.kit) seed(r.kit, r.cx, r.cz); for (const s of H.spots) if (s.active) moveSpot(s, false);
-    audio.sfx('expand'); fx.burst(new V3(r.cx, 1, r.cz), [0xffe680, 0xb8f0a0, 0xffffff, 0xffc6d8], 80, 2.4); ui.toast(`${r.name}: a casa cresceu!${boxed ? ' O que estava no lugar da porta nova foi guardado.' : ''}`, 'good'); addXp(30 + ROOMS.indexOf(r) * 8); ui.hud(); ui.focus(r.cx, r.cz); G.refreshMarkers(); G.checkQuest(); save(); return true; };
+    audio.sfx('expand'); fx.burst(new V3(r.cx, 1, r.cz), [0xffe680, 0xb8f0a0, 0xffffff, 0xffc6d8], 80, 2.4); ui.toast(id === 'hall2' ? `A escada está pronta! Toque nela para subir.${boxed ? ' O que estava no canto dela foi guardado.' : ''}` : `${r.name}: a casa cresceu!${boxed ? ' O que estava no lugar da porta nova foi guardado.' : ''}`, 'good'); addXp(30 + ROOMS.indexOf(r) * 8); ui.hud(); if (id === 'hall2') ui.focus((STAIR.x0 + STAIR.x1) / 2, (STAIR.z0 + STAIR.z1) / 2); else if (!!r.up === H.upAt(gardener.group.position.z)) ui.focus(r.cx, r.cz); G.refreshMarkers(); G.checkQuest(); save(); return true; };
   // kind: 'w' wallpaper / 'f' floor. Styles are bought once and then serve every room, in any colour.
   home.style = (kind, rid, id, color) => { const r = ROOM_BY[rid], def = (kind === 'w' ? WALL_BY : FLOOR_BY)[id], ownList = kind === 'w' ? SH.ownW : SH.ownF; if (!r || !def || !H.owned(rid)) return false;
     if (!ownList.includes(id)) { if (level() < def.lvl) { audio.sfx('error'); ui.toast(`${def.name} chega no nível ${def.lvl}`, 'warn'); return false; } if (S.coins < def.price) { audio.sfx('error'); ui.toast(`Faltam ${def.price - S.coins} moedas para ${def.name}`, 'warn'); return false; }

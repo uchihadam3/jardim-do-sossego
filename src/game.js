@@ -445,7 +445,7 @@ export function createGame({ scene, world, fx, audio, gardener, nav: gardenNav, 
       else if (c.kind === 'admire') { if (!c.done && u > 0.4) { c.done = true; fx.hearts(new THREE.Vector3(gp.x, 1.7, gp.z), 4); } }
       if (u >= 1) { G.cur = null; }
     }
-    gp.y = G.inside ? 0 : groundY(gp.x, gp.z);
+    gp.y = G.inside ? G.climbY ?? 0 : groundY(gp.x, gp.z); // climbY: on the stairs
 
     // --- time, rain ---
     const mode = S.settings.time;

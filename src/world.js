@@ -372,11 +372,11 @@ function buildHouse(scene, world, pal = {}) {
   const first = !world.houseMesh, DOOR = pal.door ?? 0x5f8f8a, SHUT = pal.shut ?? 0x6f93a8, dk = (c) => new THREE.Color(c).multiplyScalar(0.9).getHex();
   const sb = new SB(31), r = mulberry(32);
   const WALL = pal.wall ?? 0xf6ecd9, WOOD = 0x6e4c34, TRIM = 0xfbf6ec, ROOF = [0xb9583a, 0xc46442, 0xae5034, 0xcc6e4a, 0xb85c40];
-  const rooms = world.houseRooms || [], n = Math.max(2, rooms.length), two = n >= 6, H1 = 3.0; // two floors from the sixth room on
+  const rooms = world.houseRooms || [], n = Math.max(2, rooms.length), two = rooms.includes('hall2'), H1 = 3.0; // two floors outside once the staircase is built inside
   const zc = -10, w = 9, d = 6.2, h = two ? 5.7 : 3.0, zf = -6.9;
   sb.box(w, h, d, 0, h / 2, zc, WALL, null, 0); sb.box(w + 0.12, 0.5, d + 0.12, 0, 0.25, zc, 0xb5a696, null, 0);
   // gables
-  const gh = 2.5, hw = w / 2, wingOn = (sx) => n >= (sx > 0 ? 3 : 4), tallWing = (sx) => n >= (sx > 0 ? 10 : 11);
+  const gh = 2.5, hw = w / 2, wingOn = (sx) => n >= (sx > 0 ? 3 : 4), tallWing = (sx) => two && n >= (sx > 0 ? 10 : 11);
   for (const sx of [-1, 1]) {
     const g2 = new THREE.BufferGeometry(); const x = sx * hw, z0 = zc - d / 2, z1 = zc + d / 2;
     const v = sx > 0 ? [x, h, z1, x, h, z0, x, h + gh, zc] : [x, h, z0, x, h, z1, x, h + gh, zc];
