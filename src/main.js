@@ -132,6 +132,8 @@ async function boot() {
   const ptrs = new Map(); let downAt = 0, moved = 0, pinch0 = 0, dist0 = 0;
   const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), plane = new THREE.Plane(new V3(0, 1, 0), 0), hit = new V3();
   const elianePick = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 1.75, 8), new THREE.MeshBasicMaterial({ visible: false })); elianePick.position.y = 0.875; gardener.group.add(elianePick);
+  // how far the camera may pull back: enough to see the whole property (or the whole house) at once, also on an upright phone
+  const maxDist = () => { const tall = camera.aspect < 1; return game.inside ? (tall ? 64 : 44) : tall ? 96 : 64; };
   const pickAt = (cx, cy, fat = 0) => {
     const r = canvas.getBoundingClientRect(); ndc.set(((cx - r.left) / r.width) * 2 - 1, -((cy - r.top) / r.height) * 2 + 1); ray.setFromCamera(ndc, camera);
     if (game.inside && fat) { const h0 = pickAt(cx, cy); if (!h0.ground) return h0; // a finger is wide: when the tap lands just beside a piece of furniture, take the nearest one
@@ -166,7 +168,7 @@ async function boot() {
     if (ptrs.size === 1) { moved = Math.max(moved, Math.hypot(e.clientX - x0, e.clientY - y0));
       if (dragPl && game.placing) { if (moved > slop * 0.5) { const g = groundAt(e.clientX, e.clientY); if (g) game.placer().move(g.x + dragPl.ox, g.z + dragPl.oz); moved = Math.max(moved, 99); } }
       else if (moved > slop) { cam.yaw -= dx * 0.006; cam.pitch = clamp(cam.pitch + dy * 0.004, 0.16, 1.3); } }
-    else if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; const d = Math.hypot(a.x - b.x, a.y - b.y); if (pinch0 > 0) cam.dist = clamp(dist0 * (pinch0 / d), 3.5, 34); }
+    else if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; const d = Math.hypot(a.x - b.x, a.y - b.y); if (pinch0 > 0) cam.dist = clamp(dist0 * (pinch0 / d), 3.5, maxDist()); }
   });
   const up = (e) => {
     const had = ptrs.delete(e.pointerId); if (!had) return;
@@ -190,7 +192,7 @@ async function boot() {
     }
   };
   canvas.addEventListener('pointerup', up); canvas.addEventListener('pointercancel', (e) => ptrs.delete(e.pointerId));
-  canvas.addEventListener('wheel', (e) => { e.preventDefault(); cam.dist = clamp(cam.dist * Math.exp(e.deltaY * 0.0011), 3.5, 34); }, { passive: false });
+  canvas.addEventListener('wheel', (e) => { e.preventDefault(); cam.dist = clamp(cam.dist * Math.exp(e.deltaY * 0.0011), 3.5, maxDist()); }, { passive: false });
   addEventListener('keydown', (e) => { if (e.key === 'Escape' && game.placing) { game.placer().cancel(); return; } if (e.key === 'Escape') { ui.closeCards(); ui.closeModal(); document.body.classList.remove('photo'); } });
   document.addEventListener('visibilitychange', () => { if (document.hidden) { game.save(true); audio.pause(true); } else audio.pause(false); });
   addEventListener('pagehide', () => game.save(true)); addEventListener('beforeunload', () => game.save(true));
@@ -217,11 +219,14 @@ async function boot() {
     else if (ui.dressing) { if (R.w >= 700) { const vw = 2 * 5.4 * Math.tan((16 * Math.PI) / 180) * camera.aspect, off = (Math.min(440, R.w * 0.46) / 2 / R.w) * vw; tmp.set(gp.x + Math.cos(cam.yaw) * off, gp.y + 0.85, gp.z - Math.sin(cam.yaw) * off); } else tmp.set(gp.x, gp.y - 0.5, gp.z); cam.target.lerp(tmp, k); }
     else if (game.placing) { tmp.set(game.placing.x, 0.6, game.placing.z); cam.target.lerp(tmp, k); }
     else if (cam.focusT > 0) { cam.focusT -= dt; cam.target.lerp(cam.focus, k); }
-    else { tmp.set(gp.x, gp.y + 0.95, gp.z); cam.target.lerp(tmp, k); }
+    else { const far = game.inside ? 0 : clamp((cam.dist - 30) / 28, 0, 1) * 0.85; tmp.set(lerp(gp.x, 0, far), gp.y + 0.95, lerp(gp.z, 2.7, far)); cam.target.lerp(tmp, k); } // from far away the view settles on the middle of the garden
     cam.dress += ((ui.dressing ? 1 : 0) - cam.dress) * k; if (ui.dressing && !cam.wasDress) { let d = gardener.heading + 0.35 - cam.yaw; d = Math.atan2(Math.sin(d), Math.cos(d)); cam.yaw += d; } cam.wasDress = ui.dressing;
     const intro = started ? smooth(startT / 2.2) : 0, dist = lerp(lerp(27, cam.dist, intro), R.w < 700 ? 6.2 : 5.4, cam.dress), pitch = lerp(lerp(0.5, cam.pitch, intro), 0.2, cam.dress);
     const cp = Math.cos(pitch); camera.position.set(cam.target.x + Math.sin(cam.yaw) * cp * dist, cam.target.y + Math.sin(pitch) * dist, cam.target.z + Math.cos(cam.yaw) * cp * dist);
     camera.lookAt(cam.target);
+    if (!game.inside) { const f = scene.fog, fn = Math.max(38, dist * 1.6), ff = Math.max(230, dist * 6.5); if (f && Math.abs(f.near - fn) > 0.5) { f.near = fn; f.far = ff; } // the haze and the shadows reach as far as the eye
+      const sh = env.sun.shadow.camera, ext = clamp(Math.round(dist * 0.62), 19, 62), tx = Math.round(cam.target.x / 2) * 2, tz = Math.round(cam.target.z / 2) * 2, st = env.sun.target.position; if (st.x !== tx || st.z !== tz) { st.set(tx, 0, tz); env.sun.target.updateMatrixWorld(); }
+      if (sh.right !== ext) { sh.left = -ext; sh.right = ext; sh.top = ext; sh.bottom = -ext; sh.far = 90 + ext; sh.updateProjectionMatrix(); } }
     { const nr = cam.dress > 0.5 ? Math.max(0.3, camera.position.distanceTo(gp) - 1.4) : 0.3; if (Math.abs(nr - camera.near) > 0.01) { camera.near = nr; camera.updateProjectionMatrix(); } } // in the dressing room nothing stands between her and the camera
     if (R.final) { tmp.set(gp.x, gp.y + 0.8, gp.z).project(camera); focusY += ((started ? clamp(tmp.y * 0.5 + 0.5, 0.3, 0.7) : 0.5) - focusY) * k; R.final.uniforms.uFocus.value = focusY; }
     R.render(game.inside ? house.scene : scene, camera);
