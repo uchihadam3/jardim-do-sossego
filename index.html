@@ -306,7 +306,7 @@ body.indoors.playing #b-exit{display:inline-flex} body.photo #b-exit,body.placin
 #fade{position:fixed;inset:0;background:#f6f1e4;opacity:0;pointer-events:none;transition:opacity .32s;z-index:40} #fade.on{opacity:1;pointer-events:auto}
 .rtag{background:var(--paper)} .cmap{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:6px 0 12px}
 .croom{aspect-ratio:1.15;border-radius:12px;border:2px dashed var(--line);background:var(--paper-2);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:4px;text-align:center;font-family:var(--display);font-weight:600;font-size:12.5px;line-height:1.1;color:var(--ink-soft)}
-.croom small{font-family:var(--body);font-weight:800;font-size:11px;display:flex;align-items:center;gap:2px} .croom small .ic{width:12px;height:12px}
+.croom.none{border:0;background:none} .croom small{font-family:var(--body);font-weight:800;font-size:11px;display:flex;align-items:center;gap:2px} .croom small .ic{width:12px;height:12px}
 .croom.own{border-style:solid;border-color:var(--leaf);background:#eef6e2;color:var(--ink)} .croom.can{border-color:var(--honey);background:#fff;color:var(--ink)} .croom.can:hover{transform:translateY(-2px)} .croom.here{box-shadow:0 0 0 3px var(--leaf) inset}
 .stcard .th{height:74px} .stcard .th i{display:block;width:100%;height:100%;background-size:cover;background-position:center;border-radius:10px}
 .c-pal{display:flex;flex-direction:column;gap:5px;margin:2px 0 4px} .c-pal>span{font-size:11.5px;font-weight:800;color:var(--ink-soft)} .c-pal .wpal{grid-template-columns:repeat(auto-fill,minmax(24px,1fr));gap:4px}
@@ -377,5 +377,5 @@ body.indoors.playing #b-exit{display:inline-flex} body.photo #b-exit,body.placin
   <button class="btn big" id="start" hidden>Começar</button>
 </div>
 <div id="err" hidden></div>
-<script src="game.js?v=7374ffb98b"></script>
+<script src="game.js?v=cfe46c25c8"></script>
 </body></html>
