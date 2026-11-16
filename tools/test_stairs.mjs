@@ -18,7 +18,7 @@ ok('building the second floor puts the staircase in the Sala', r.okb && r.paid =
 ok('what stood in its corner goes back to the box', r.boxed >= 1 && r.stored >= 1, JSON.stringify({ boxed: r.boxed, stored: r.stored }));
 ok('the house grows a floor on the outside too', r.outside.includes('hall2'));
 r = await ev(() => { const g = window.__game, home = g.game.home; home.buy('cadeira_simples'); home.move(-2.2, -2.0); const pl = g.game.placing, out = { ok: pl.ok, x: pl.x, z: pl.z }; home.cancel(); return out; });
-ok('furniture no longer fits in the stair corner: it slides out of it', r.ok && !(r.x < -0.72 && r.z < -0.72), JSON.stringify(r));
+ok('furniture no longer fits in the stair corner: it slides out of it, staying in the Sala', r.ok && !(r.x < -0.72 && r.z < -0.72) && r.z > -2.8 && r.x > -3.2, JSON.stringify(r));
 // 2. up
 await ev(() => { window.__maxY = -9; window.__minY = 9; window.__iv = setInterval(() => { const y = window.__game.game.gp.y; window.__maxY = Math.max(window.__maxY, y); window.__minY = Math.min(window.__minY, y); }, 30); window.__game.game.home.stairs('up'); });
 ok('she reaches the upper floor', await until(() => window.__game.house.level === 1 && window.__game.game.gp.z > 200 && !window.__game.game.cur, 240000));

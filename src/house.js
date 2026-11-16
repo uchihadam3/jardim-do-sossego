@@ -196,7 +196,7 @@ export function createHouse() {
   const doorZones = (r) => { const out = []; for (const w of H.walls) if (w.room === r && w.door) { const sd = SIDE[w.side], px = r.cx + sd.dx * (CW / 2), pz = r.cz + sd.dz * (CD / 2), a = 0.72, b = 0.85; out.push(sd.dx ? [Math.min(px, px - sd.dx * b), Math.max(px, px - sd.dx * b), pz - a, pz + a] : [px - a, px + a, Math.min(pz, pz - sd.dz * b), Math.max(pz, pz - sd.dz * b)]); } return out; };
   const rectOf = (it) => H.rect(it.def, it.rec.x, it.rec.z, it.rec.r);
   // the nearest place where the piece is inside a room and clear of the walls (it goes right up against them)
-  H.fit = (def, x, z, rot) => { let room = H.roomAt(x, z); if (!room) { let bd = 1e9; for (const r of H.rooms) { const d = Math.hypot(x - clamp(x, r.cx - CW / 2, r.cx + CW / 2), z - clamp(z, r.cz - CD / 2, r.cz + CD / 2)); if (d < bd) { bd = d; room = r; } } if (!room) return { x, z }; }
+  H.fit = (def, x, z, rot, keep) => { let room = keep || H.roomAt(x, z); if (!room) { let bd = 1e9; for (const r of H.rooms) { const d = Math.hypot(x - clamp(x, r.cx - CW / 2, r.cx + CW / 2), z - clamp(z, r.cz - CD / 2, r.cz + CD / 2)); if (d < bd) { bd = d; room = r; } } if (!room) return { x, z }; }
     const In = inner(room); if (def.kind === 'wall') return { x: clamp(x, In[0], In[1]), z: clamp(z, In[2], In[3]), room };
     const q = quarter(rot), hw = (q % 2 ? def.d : def.w) / 2, hd = (q % 2 ? def.w : def.d) / 2, fx = In[1] - In[0] < hw * 2 ? room.cx : clamp(x, In[0] + hw, In[1] - hw), fz = In[3] - In[2] < hd * 2 ? room.cz : clamp(z, In[2] + hd, In[3] - hd); return { x: fx, z: fz, room }; };
   // pose: { x, z, r } -> { ok, y, room, side, t, why, hit (what is in the way) }
