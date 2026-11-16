@@ -207,7 +207,7 @@ async function boot() {
     gardener.update(dt, time);
     env.setHour(state.hour); world.setNight(env.night); world.update(dt, time); env.update(dt, camera.position);
     { const se = game.sys.season().id; if (se !== fx.season) { world.setSeason(se, fx.season === -1); fx.season = se; } }
-    if (started && !game.inside) { critters.update(dt, time); visitor.update(dt, time); }
+    if (started && !game.inside) { critters.update(dt, time); for (let i = 0; i < speed; i++) visitor.update(dt, time); }
     if (game.inside) house.update(dt, time, camera.position, gardener.group.position, env.night, state.hour);
     fx.update(dt, time, env, camera, world.chimney); audio.update(env.night, fx.rain, game.inside);
     windU.uWind.value = 1 + fx.rain * 0.8;

@@ -22,7 +22,7 @@ await p.click('#card [data-a="talk"]'); await wait(400); r = await ev(() => ({ p
 ok('talking makes them a little closer', r.pts === 1 && r.say.length > 8, JSON.stringify(r)); await p.click('#card [data-a="talk"]'); await wait(300); ok('…but only once a visit', await ev(() => window.__game.state.friends.Bia === 1));
 // 2. a present she loves: first heart and a present back
 const c0 = await ev(() => window.__game.state.coins); await p.click('#card [data-a="gift"]'); await wait(400); ok('the basket is offered', await ev(() => document.querySelectorAll('#card [data-give]').length === 2));
-await p.click('#card [data-give="tomate"]'); await wait(2500);
+await p.click('#card [data-give="tomate"]'); await until(() => document.querySelector('#modal').textContent.includes('Amizade com'), 40000);
 r = await ev((c) => { const g = window.__game, S = g.state; return { pts: S.friends.Bia, hearts: g.visitor.hearts, basket: S.basket.tomate, gain: S.coins - c, box: Object.values(S.seedbox).reduce((a, n) => a + n, 0), modal: document.querySelector('#modal').textContent }; }, c0);
 ok('tomatoes are her favourite: three points, the first heart', r.pts === 4 && r.hearts === 1 && r.basket === 1, JSON.stringify({ ...r, modal: 0 }));
 ok('the new heart brings coins and a seedling', r.gain >= 80 && r.box === 1 && r.modal.includes('Amizade com Bia'), r.modal.slice(0, 140)); await ev(() => window.__game.ui.closeModal()); await wait(400);
