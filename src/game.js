@@ -506,7 +506,7 @@ export function createGame({ scene, world, fx, audio, gardener, nav: gardenNav, 
   // ---------- init from save ----------
   G.init = () => {
     for (const z of ZONES) world.setZone(z.id, S.zones.includes(z.id));
-    G.home.init();
+    G.home.init(); G.growHouse = () => world.setHouseRooms(S.house.rooms); G.growHouse();
     for (const d of DECOR) world.setDecor(d.id, S.decor.includes(d.id));
     // a garden saved under an older, faster pace: convert so every plant keeps exactly the stage it had
     if ((S.pace || 1) < PACE_V) { const v = S.pace || 1; for (const id in S.plants) { const p = S.plants[id], sp = SPECIES[p.sp]; if (!sp || !sp.growOld[v]) continue; p.grown = Math.min(1, p.grown / sp.growOld[v]) * sp.grow; p.giftT = Math.min(1, (p.giftT || 0) / sp.everyOld[v]) * sp.every; p.wet = (p.wet || 0) * 2; } S.pace = PACE_V; }

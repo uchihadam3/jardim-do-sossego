@@ -120,7 +120,7 @@ export function attachHome(G, { S, house: H, fx, audio, gardener, ui, addXp, lev
   // ---------- rooms, wallpapers, floors ----------
   home.buyRoom = (id) => { const r = ROOM_BY[id]; if (!r || H.owned(id) || !H.buyable().includes(r)) return false;
     if (level() < r.lvl) { audio.sfx('error'); ui.toast(`${r.name} chega no nível ${r.lvl}`, 'warn'); return false; } if (S.coins < r.cost) { audio.sfx('error'); ui.toast(`Faltam ${r.cost - S.coins} moedas para ${r.name}`, 'warn'); return false; }
-    S.coins -= r.cost; SH.rooms.push(id); H.rebuild();
+    S.coins -= r.cost; SH.rooms.push(id); H.rebuild(); if (G.growHouse && G.growHouse()) setTimeout(() => ui.toast('A casa também cresceu por fora. Saia para o jardim para ver!', 'good'), 2600);
     // whatever was hanging where a door now opens goes back to the box
     let boxed = 0; for (const it of H.items.slice()) { if (it === (G.placing || {}).it) continue; const res = it.def.kind === 'wall' ? (() => { const w = H.wallOf(it.rec.room, it.rec.side); return w && w.door && Math.abs(it.rec.t) < 0.65 + it.def.w / 2 + 0.08 ? { ok: false } : { ok: true }; })() : it.def.kind === 'floor' ? H.check(it.def, { x: it.rec.x, z: it.rec.z, r: it.rec.r }, [it]) : { ok: true };
       if (!res.ok && !hasPlants(it)) { H.freeSpots(it.rec); H.drop(it); SH.items.splice(SH.items.indexOf(it.rec), 1); SH.stored[it.rec.k] = (SH.stored[it.rec.k] || 0) + 1; boxed++; } }

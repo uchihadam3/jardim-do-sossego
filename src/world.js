@@ -165,6 +165,7 @@ export function createWorld(scene, q, unlocked, hooks = {}) {
       if (side === 0) { x = hr.range(-34, 34); z = hr.range(-28, -16); } else if (side === 1) { x = hr.range(15.5, 30) * (hr() < 0.5 ? -1 : 1); z = hr.range(-22, 22); }
       else if (side === 2) { x = hr.range(-38, 38); z = hr.range(19.5, 34); if (Math.abs(x) < 4) x += 8; } else { const a = hr() * TAU, r = hr.range(34, 58); x = Math.cos(a) * r; z = Math.sin(a) * r; }
       if (Math.abs(x) < LAND + 2.5 && z > -11.5 && z < 17) { if (side === 1) x = Math.sign(x) * hr.range(LAND + 3, LAND + 16); else z = z < 3 ? hr.range(-28, -13) : hr.range(18.5, 32); }
+      if (Math.abs(x) < 15 && z > -18.5 && z < -11) z -= 6.5; // the house grows there
       spots.push([x, z]);
     }
     variants.forEach((geo, vi) => {
@@ -188,7 +189,9 @@ export function createWorld(scene, q, unlocked, hooks = {}) {
   }
 
   // ----- house -----
-  buildHouse(scene, world); world.paintHouse = (pal) => buildHouse(scene, world, pal);
+  buildHouse(scene, world); world.paintHouse = (pal) => { world.housePal = pal; buildHouse(scene, world, pal); };
+  // the house grows on the outside as rooms are added inside (behind the fence line and upwards, never over the garden)
+  world.setHouseRooms = (rooms) => { const key = [...rooms].sort().join(); if (key === world.houseKey) return false; world.houseKey = key; world.houseRooms = [...rooms]; buildHouse(scene, world, world.housePal || {}); return true; };
 
   // ----- fence (repaintable) -----
   world.paintFence = (fenceColor = 0xf3ede2) => {
@@ -369,15 +372,16 @@ function buildHouse(scene, world, pal = {}) {
   const first = !world.houseMesh, DOOR = pal.door ?? 0x5f8f8a, SHUT = pal.shut ?? 0x6f93a8, dk = (c) => new THREE.Color(c).multiplyScalar(0.9).getHex();
   const sb = new SB(31), r = mulberry(32);
   const WALL = pal.wall ?? 0xf6ecd9, WOOD = 0x6e4c34, TRIM = 0xfbf6ec, ROOF = [0xb9583a, 0xc46442, 0xae5034, 0xcc6e4a, 0xb85c40];
-  const zc = -10, w = 9, d = 6.2, h = 3.0, zf = -6.9;
+  const rooms = world.houseRooms || [], n = Math.max(2, rooms.length), two = n >= 6, H1 = 3.0; // two floors from the sixth room on
+  const zc = -10, w = 9, d = 6.2, h = two ? 5.7 : 3.0, zf = -6.9;
   sb.box(w, h, d, 0, h / 2, zc, WALL, null, 0); sb.box(w + 0.12, 0.5, d + 0.12, 0, 0.25, zc, 0xb5a696, null, 0);
   // gables
-  const gh = 2.5, hw = w / 2;
+  const gh = 2.5, hw = w / 2, wingOn = (sx) => n >= (sx > 0 ? 3 : 4), tallWing = (sx) => n >= (sx > 0 ? 10 : 11);
   for (const sx of [-1, 1]) {
     const g2 = new THREE.BufferGeometry(); const x = sx * hw, z0 = zc - d / 2, z1 = zc + d / 2;
     const v = sx > 0 ? [x, h, z1, x, h, z0, x, h + gh, zc] : [x, h, z0, x, h, z1, x, h + gh, zc];
     g2.setAttribute('position', new THREE.Float32BufferAttribute(v, 3)); g2.computeVertexNormals(); sb.add(g2, null, WALL, 0);
-    sb.cyl(0.42, 0.42, 0.06, x + sx * 0.02, h + 0.85, zc, 0x9cc4dd, 16, RZ(Math.PI / 2), 0); sb.add(new THREE.TorusGeometry(0.44, 0.05, 6, 20), mul(T(x + sx * 0.03, h + 0.85, zc), RY(Math.PI / 2)), TRIM, 0);
+    if (!wingOn(sx) || (two && !tallWing(sx))) { sb.cyl(0.42, 0.42, 0.06, x + sx * 0.02, h + 0.85, zc, 0x9cc4dd, 16, RZ(Math.PI / 2), 0); sb.add(new THREE.TorusGeometry(0.44, 0.05, 6, 20), mul(T(x + sx * 0.03, h + 0.85, zc), RY(Math.PI / 2)), TRIM, 0); }
   }
   // roof tiles: half-cylinders laid along each slope
   const slope = Math.atan2(gh, d / 2), len = Math.hypot(gh, d / 2);
@@ -394,7 +398,7 @@ function buildHouse(scene, world, pal = {}) {
   sb.cyl(0.16, 0.16, w + 1.2, 0, h + gh + 0.1, zc, 0xa84e32, 8, RZ(Math.PI / 2));
   // beams
   for (const sx of [-1, 1]) for (const sz of [-1, 1]) sb.box(0.2, h, 0.2, sx * hw, h / 2, zc + sz * d / 2, WOOD);
-  sb.box(w + 0.1, 0.18, 0.16, 0, h - 0.05, zf, WOOD);
+  sb.box(w + 0.1, 0.18, 0.16, 0, h - 0.05, zf, WOOD); if (two) sb.box(w + 0.1, 0.18, 0.16, 0, H1 - 0.05, zf, WOOD);
   // chimney
   sb.box(0.7, 1.9, 0.7, 2.6, h + gh - 0.3, zc - 1.0, 0xa8674e); sb.box(0.84, 0.14, 0.84, 2.6, h + gh + 0.68, zc - 1.0, 0x8e5540);
   world.chimney = new V3(2.6, h + gh + 0.8, zc - 1.0);
@@ -404,8 +408,7 @@ function buildHouse(scene, world, pal = {}) {
   sb.sph(0.045, 0.38, 1.1 + PORCH_Y, zf + 0.14, 0xe0b85a, 1, 1, 1, 8, 0);
   sb.add(new THREE.CircleGeometry(0.2, 16), T(0, 1.86 + PORCH_Y, zf + 0.115), 0xf6dfa0, 0);
   // windows
-  const glass = new THREE.MeshStandardMaterial({ color: 0x9cc8e0, roughness: 0.15, metalness: 0.1, emissive: 0xffc46a, emissiveIntensity: 0 });
-  glass.userData.e = 1.6; if (first) world.nightMats.push(glass);
+  let glass = world.houseGlassMat; if (!glass) { glass = world.houseGlassMat = new THREE.MeshStandardMaterial({ color: 0x9cc8e0, roughness: 0.15, metalness: 0.1, emissive: 0xffc46a, emissiveIntensity: 0, side: THREE.DoubleSide }); glass.userData.e = 1.6; world.nightMats.push(glass); }
   const gl = [];
   for (const wx of [-2.75, 2.75]) {
     const wy = 1.85;
@@ -415,8 +418,9 @@ function buildHouse(scene, world, pal = {}) {
     for (const s of [-1, 1]) { sb.box(0.5, 1.42, 0.05, wx + s * 1.02, wy, zf + 0.04, SHUT); for (let k = 0; k < 6; k++) sb.box(0.4, 0.03, 0.02, wx + s * 1.02, wy - 0.55 + k * 0.22, zf + 0.075, dk(SHUT), null, 0); }
     sb.box(1.7, 0.07, 0.2, wx, wy - 0.75, zf + 0.08, TRIM, null, 0);
   }
-  for (const sx of [-1, 1]) { const g = new THREE.CircleGeometry(0.4, 16); g.rotateY(sx * Math.PI / 2); g.translate(sx * (hw + 0.055), h + 0.85, zc); gl.push(g); }
-  const gm = new THREE.Mesh(mergeGeometries(gl), glass); if (first) scene.add(gm);
+  for (const sx of [-1, 1]) if (!wingOn(sx) || (two && !tallWing(sx))) { const g = new THREE.CircleGeometry(0.4, 16); g.rotateY(sx * Math.PI / 2); g.translate(sx * (hw + 0.055), h + 0.85, zc); gl.push(g); }
+  growHouse();
+  if (world.houseGlass) { world.houseGlass.geometry.dispose(); world.houseGlass.geometry = mergeGeometries(gl); } else { world.houseGlass = new THREE.Mesh(mergeGeometries(gl), glass); scene.add(world.houseGlass); }
   // porch
   sb.box(9.8, PORCH_Y, 2.05, 0, PORCH_Y / 2, -5.93, 0xa9825c, null, 0);
   for (let i = 0; i < 20; i++) sb.box(0.46, 0.02, 2.05, -4.66 + i * 0.49, PORCH_Y + 0.005, -5.93, r.pick([0xb38a62, 0xa67e58, 0xba9068]), null, 0.03);
@@ -425,7 +429,7 @@ function buildHouse(scene, world, pal = {}) {
   sb.box(9.8, 0.16, 0.16, 0, 2.6, -5.0, TRIM);
   for (const [x0, x1] of [[-4.7, -1.45], [1.45, 4.7]]) { sb.box(x1 - x0, 0.06, 0.07, (x0 + x1) / 2, PORCH_Y + 0.78, -5.0, TRIM); for (let x = x0 + 0.2; x < x1; x += 0.2) sb.box(0.04, 0.7, 0.04, x, PORCH_Y + 0.42, -5.0, TRIM, null, 0); }
   // porch roof (shallower continuation of the front slope)
-  tiles(-5.15, 5.15, h + 0.1, zf - 0.02, 1, 0.19, 2.5, 5, 30);
+  tiles(-5.15, 5.15, H1 + 0.1, zf - 0.02, 1, 0.19, 2.5, 5, 30);
   // wall lantern
   sb.box(0.12, 0.2, 0.12, 0.95, 2.1, zf + 0.12, 0x3a3a3a);
   const lampM = new THREE.MeshStandardMaterial({ color: 0xfff0c8, emissive: 0xffc070, emissiveIntensity: 0, roughness: 0.4 }); lampM.userData.e = 4; if (first) world.nightMats.push(lampM);
@@ -434,6 +438,56 @@ function buildHouse(scene, world, pal = {}) {
   // welcome mat + hose barrel
   sb.box(0.9, 0.02, 0.5, 0, PORCH_Y + 0.012, -6.4, 0xb8704a);
   sb.lathe([[0.001, 0], [0.26, 0], [0.3, 0.3], [0.26, 0.62], [0.24, 0.62], [0.24, 0.56]], 5.6, 0, -6.5, 0x7a5a40, 12); sb.cyl(0.24, 0.24, 0.02, 5.6, 0.55, -6.5, 0x6aa0c0, 12);
+
+  // ---------- everything the house gains as it grows ----------
+  // a window with shutters (and a flower box) on a wall that faces the garden
+  function win(wx, wy, wz, ww = 1.3, wh = 1.22, shut = true, box = true) {
+    sb.box(ww + 0.2, wh + 0.2, 0.1, wx, wy, wz + 0.02, TRIM, null, 0); const g = new THREE.PlaneGeometry(ww, wh); g.translate(wx, wy, wz + 0.075); gl.push(g);
+    sb.box(0.05, wh, 0.04, wx, wy, wz + 0.09, TRIM, null, 0); sb.box(ww, 0.05, 0.04, wx, wy, wz + 0.09, TRIM, null, 0);
+    if (shut) for (const s of [-1, 1]) { sb.box(0.42, wh + 0.2, 0.05, wx + s * (ww / 2 + 0.33), wy, wz + 0.04, SHUT); for (let k = 0; k < 5; k++) sb.box(0.33, 0.03, 0.02, wx + s * (ww / 2 + 0.33), wy - wh * 0.36 + k * wh * 0.18, wz + 0.075, dk(SHUT), null, 0); }
+    sb.box(ww + 0.4, 0.07, 0.2, wx, wy - wh / 2 - 0.14, wz + 0.08, TRIM, null, 0);
+    if (box && n >= 5) { sb.box(ww + 0.1, 0.2, 0.24, wx, wy - wh / 2 - 0.3, wz + 0.2, 0x9a6a48); for (let k = 0; k < 7; k++) { const fx = wx - ww / 2 + 0.1 + (k / 6) * (ww - 0.2); sb.sph(0.1, fx, wy - wh / 2 - 0.16, wz + 0.2, 0x5a9a44, 1, 0.8, 1, 6, 0.1); sb.sph(0.06, fx + r.range(-0.04, 0.04), wy - wh / 2 - 0.06 + r.range(0, 0.05), wz + 0.24, r.pick([0xe86a8a, 0xf2c84b, 0xf6f1e6, 0xe8736a, 0xb48ad8]), 1, 1, 1, 6, 0); } }
+  }
+  // a roof with its ridge running towards the garden: two tiled slabs
+  function roofZ(xc, rw, y0, z0, z1, rise) { const ang = Math.atan2(rise, rw / 2), L = Math.hypot(rise, rw / 2) + 0.18, zm = (z0 + z1) / 2, dz = z1 - z0;
+    for (const s of [-1, 1]) for (let k = 0; k < 4; k++) { const t = (k + 0.5) / 4; sb.box(L / 4 + 0.02, 0.09, dz, xc + s * Math.cos(ang) * L * t, y0 + rise - Math.sin(ang) * L * t + 0.02, zm, ROOF[(k + (s > 0 ? 1 : 0)) % ROOF.length], RZ(-s * ang), 0.04); }
+    sb.cyl(0.09, 0.09, dz + 0.1, xc, y0 + rise + 0.07, zm, 0xa84e32, 6, RX(Math.PI / 2)); }
+  function wing(sx) { const tall = tallWing(sx), ww = 4.6, xc = sx * (hw + ww / 2), xe = sx * (hw + ww), wz = -11.35, wd = 3.3, wh = tall ? 5.3 : 2.7, rise = 1.45, zw = wz + wd / 2;
+    sb.box(ww, wh, wd, xc, wh / 2, wz, WALL, null, 0); sb.box(ww + 0.12, 0.45, wd + 0.12, xc, 0.225, wz, 0xb5a696, null, 0);
+    { const g2 = new THREE.BufferGeometry(), z0 = wz - wd / 2; g2.setAttribute('position', new THREE.Float32BufferAttribute(sx > 0 ? [xe, wh, zw, xe, wh, z0, xe, wh + rise, wz] : [xe, wh, z0, xe, wh, zw, xe, wh + rise, wz], 3)); g2.computeVertexNormals(); sb.add(g2, null, WALL, 0); }
+    const ang = Math.atan2(rise, wd / 2), L = Math.hypot(rise, wd / 2) + 0.32, a = sx > 0 ? hw - 0.05 : -(hw + ww + 0.45), b = sx > 0 ? hw + ww + 0.45 : -hw + 0.05;
+    tiles(a, b, wh + rise, wz, -1, ang, L, 6, 14); tiles(a, b, wh + rise, wz, 1, ang, L, 6, 14); sb.cyl(0.13, 0.13, ww + 0.5, xc + sx * 0.2, wh + rise + 0.08, wz, 0xa84e32, 8, RZ(Math.PI / 2));
+    for (const z of [wz - wd / 2, zw]) sb.box(0.18, wh, 0.18, xe, wh / 2, z, WOOD); sb.box(ww, 0.16, 0.14, xc, wh - 0.05, zw, WOOD);
+    win(xc, 1.75, zw); if (tall) { win(xc, 4.2, zw); sb.box(ww, 0.14, 0.12, xc, 2.75, zw, WOOD); }
+    sb.cyl(0.34, 0.34, 0.06, xe + sx * 0.02, wh + 0.55, wz, 0x9cc4dd, 14, RZ(Math.PI / 2), 0); sb.add(new THREE.TorusGeometry(0.36, 0.045, 6, 18), mul(T(xe + sx * 0.03, wh + 0.55, wz), RY(Math.PI / 2)), TRIM, 0);
+    { const g = new THREE.CircleGeometry(0.32, 14); g.rotateY(sx * Math.PI / 2); g.translate(xe + sx * 0.055, wh + 0.55, wz); gl.push(g); } }
+  function growHouse() {
+    if (n >= 3) wing(1); if (n >= 4) wing(-1);
+    if (n >= 5) { // a climbing rose up the corner of the house
+      for (let k = 0; k < 16; k++) { const t = k / 15, y = 0.35 + t * (H1 - 0.5), x = hw - 0.12 + Math.sin(t * 9) * 0.13; sb.sph(0.15, x, y, zf + 0.12, r.pick([0x4f8f3c, 0x5a9a44, 0x478236]), 1, 0.9, 0.6, 6, 0.08); if (k % 2) sb.sph(0.075, x + r.range(-0.1, 0.1), y + r.range(-0.05, 0.08), zf + 0.22, r.pick([0xe86a8a, 0xf08aa0, 0xf6c8d0]), 1, 1, 1, 6, 0); } }
+    if (two) { for (const wx of [-2.75, 0, 2.75]) win(wx, H1 + 1.72, zf, 1.3, 1.22, true, wx !== 0); // upstairs
+      sb.box(2.3, 0.08, 0.62, 0, H1 + 0.92, zf + 0.33, TRIM); sb.box(2.3, 0.05, 0.05, 0, H1 + 1.62, zf + 0.62, TRIM); for (let x = -1.12; x <= 1.13; x += 0.16) sb.box(0.035, 0.7, 0.035, x, H1 + 1.27, zf + 0.62, TRIM, null, 0); for (const s of [-1, 1]) sb.box(0.05, 0.05, 0.6, s * 1.13, H1 + 1.62, zf + 0.33, TRIM); }
+    if (n >= 7) { // a glass conservatory at the end of the right wing
+      const x0 = hw + 4.6, x1 = x0 + 3.2, z0 = -12.75, z1 = -9.95, ch = 2.25, cr = 1.05, xm = (x0 + x1) / 2, zm = (z0 + z1) / 2;
+      sb.box(x1 - x0, 0.5, z1 - z0, xm, 0.25, zm, 0xb98a6e, null, 0.03); for (const x of [x0 + 0.04, xm, x1 - 0.04]) for (const z of [z0 + 0.04, z1 - 0.04]) sb.box(0.09, ch, 0.09, x, ch / 2, z, TRIM); for (const z of [z0 + 0.04, z1 - 0.04]) { sb.box(x1 - x0, 0.09, 0.09, xm, ch, z, TRIM); sb.box(x1 - x0, 0.06, 0.06, xm, 1.35, z, TRIM); } sb.box(0.09, 0.09, z1 - z0, x1 - 0.04, ch, zm, TRIM); sb.box(x1 - x0, 0.1, 0.1, xm, ch + cr, zm, TRIM);
+      { const g = new THREE.PlaneGeometry(x1 - x0 - 0.1, ch - 0.5); g.translate(xm, 0.5 + (ch - 0.5) / 2, z1 - 0.03); gl.push(g); const e = new THREE.PlaneGeometry(z1 - z0 - 0.1, ch - 0.5); e.rotateY(Math.PI / 2); e.translate(x1 - 0.03, 0.5 + (ch - 0.5) / 2, zm); gl.push(e);
+        const sl = Math.atan2(cr, (z1 - z0) / 2), Lr = Math.hypot(cr, (z1 - z0) / 2); for (const s of [-1, 1]) { const rf = new THREE.PlaneGeometry(x1 - x0 - 0.06, Lr); rf.rotateX(-Math.PI / 2 + s * sl); rf.translate(xm, ch + cr / 2, zm + s * (z1 - z0) / 4); gl.push(rf); for (const x of [x0 + 0.04, xm, x1 - 0.04]) sb.box(0.07, 0.07, Lr, x, ch + cr / 2 + 0.02, zm + s * (z1 - z0) / 4, TRIM, RX(s * sl), 0); }
+        const tri = new THREE.BufferGeometry(); tri.setAttribute('position', new THREE.Float32BufferAttribute([x1 - 0.03, ch, z1, x1 - 0.03, ch, z0, x1 - 0.03, ch + cr, zm], 3)); tri.setAttribute('normal', new THREE.Float32BufferAttribute([1, 0, 0, 1, 0, 0, 1, 0, 0], 3)); tri.setAttribute('uv', new THREE.Float32BufferAttribute([0, 0, 1, 0, 0.5, 1], 2)); tri.setIndex([0, 1, 2]); gl.push(tri); }
+      for (let k = 0; k < 5; k++) { const px = x0 + 0.5 + k * 0.56; sb.cyl(0.14, 0.11, 0.24, px, 0.62, z1 - 0.4, 0xb8704a, 8); sb.sph(0.2, px, 0.9, z1 - 0.4, r.pick([0x4f8f3c, 0x5a9a44, 0x6aa648]), 1, 1.2, 1, 6, 0.1); } }
+    if (n >= 8) { // a little tower behind the left corner
+      const tx = -hw - 0.15, tz = zc - 1.75, tr = 1.4, th = h + gh + 0.7, R8 = RY(Math.PI / 8);
+      sb.cyl(tr, tr, th, tx, th / 2, tz, WALL, 8, R8, 0); sb.cyl(tr + 0.07, tr + 0.07, 0.18, tx, th - 0.09, tz, TRIM, 8, R8, 0); sb.cyl(tr + 0.05, tr + 0.05, 0.12, tx, th - 1.75, tz, TRIM, 8, R8, 0);
+      sb.add(new THREE.ConeGeometry(tr + 0.42, 2.5, 8), mul(T(tx, th + 1.25, tz), R8), ROOF[0], 0); sb.add(new THREE.ConeGeometry(tr + 0.5, 0.5, 8), mul(T(tx, th + 0.2, tz), R8), ROOF[3], 0);
+      const fz = tz + tr * 0.925; sb.box(0.62, 1.0, 0.08, tx, th - 0.95, fz + 0.01, TRIM, null, 0); { const g = new THREE.PlaneGeometry(0.46, 0.84); g.translate(tx, th - 0.95, fz + 0.06); gl.push(g); } sb.box(0.04, 0.84, 0.03, tx, th - 0.95, fz + 0.07, TRIM, null, 0);
+      const gold = n >= 12 ? 0xf0c040 : 0x3a3a3a; sb.cyl(0.03, 0.03, 1.0, tx, th + 2.95, tz, 0x3a3a3a, 6); sb.sph(0.09, tx, th + 2.55, tz, gold, 1, 1, 1, 8, 0); sb.box(0.8, 0.04, 0.04, tx, th + 3.3, tz, gold); sb.add(new THREE.ConeGeometry(0.1, 0.24, 4), mul(T(tx + 0.5, th + 3.3, tz), RZ(-Math.PI / 2)), gold, 0); sb.box(0.22, 0.2, 0.03, tx - 0.34, th + 3.3, tz, gold);
+      if (n >= 12) { const fg = new THREE.BufferGeometry(); fg.setAttribute('position', new THREE.Float32BufferAttribute([tx, th + 3.9, tz, tx, th + 3.5, tz, tx + 0.75, th + 3.7, tz], 3)); fg.computeVertexNormals(); sb.add(fg, null, 0xe2685f, 0); sb.cyl(0.02, 0.02, 0.6, tx, th + 3.7, tz, 0x3a3a3a, 5); } }
+    if (n >= 9) { // dormer windows in the roof and a second chimney
+      sb.box(0.7, 1.9, 0.7, -2.6, h + gh - 0.3, zc - 1.0, 0xa8674e); sb.box(0.84, 0.14, 0.84, -2.6, h + gh + 0.68, zc - 1.0, 0x8e5540);
+      for (const dx of [-2.3, 2.3]) { const dz = -8.25, by = h + 1.25; sb.box(1.2, 1.5, 1.4, dx, by, dz, WALL, null, 0); roofZ(dx, 1.45, by + 0.75, dz - 0.75, dz + 0.82, 0.55);
+        { const g2 = new THREE.BufferGeometry(); g2.setAttribute('position', new THREE.Float32BufferAttribute([dx - 0.6, by + 0.75, dz + 0.7, dx + 0.6, by + 0.75, dz + 0.7, dx, by + 1.25, dz + 0.7], 3)); g2.computeVertexNormals(); sb.add(g2, null, WALL, 0); }
+        sb.box(0.9, 0.86, 0.06, dx, by + 0.22, dz + 0.71, TRIM, null, 0); const g = new THREE.PlaneGeometry(0.74, 0.7); g.translate(dx, by + 0.22, dz + 0.75); gl.push(g); sb.box(0.04, 0.7, 0.03, dx, by + 0.22, dz + 0.76, TRIM, null, 0); } }
+    if (n >= 12) { for (let x = -hw; x <= hw + 0.01; x += 0.75) sb.add(new THREE.ConeGeometry(0.07, 0.3, 4), T(x, h + gh + 0.38, zc), 0xf0c040, 0); for (const sx of [-1, 1]) sb.sph(0.13, sx * (hw + 0.62), h + gh + 0.3, zc, 0xf0c040, 1, 1, 1, 8, 0); }
+  }
   if (world.houseMesh) { scene.remove(world.houseMesh); world.houseMesh.geometry.dispose(); }
   const m = sb.mesh(propMat2); scene.add(m); world.houseMesh = m;
 }
