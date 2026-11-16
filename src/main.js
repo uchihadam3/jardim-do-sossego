@@ -132,11 +132,14 @@ async function boot() {
   const ptrs = new Map(); let downAt = 0, moved = 0, pinch0 = 0, dist0 = 0;
   const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), plane = new THREE.Plane(new V3(0, 1, 0), 0), hit = new V3();
   const elianePick = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 1.75, 8), new THREE.MeshBasicMaterial({ visible: false })); elianePick.position.y = 0.875; gardener.group.add(elianePick);
-  const pickAt = (cx, cy) => {
+  const pickAt = (cx, cy, fat = 0) => {
     const r = canvas.getBoundingClientRect(); ndc.set(((cx - r.left) / r.width) * 2 - 1, -((cy - r.top) / r.height) * 2 + 1); ray.setFromCamera(ndc, camera);
+    if (game.inside && fat) { const h0 = pickAt(cx, cy); if (!h0.ground) return h0; // a finger is wide: when the tap lands just beside a piece of furniture, take the nearest one
+      for (const rad of [fat * 0.5, fat]) { let best = null; for (let k = 0; k < 8; k++) { const h = pickAt(cx + Math.cos(k * 0.785) * rad, cy + Math.sin(k * 0.785) * rad); if ((h.hitem || h.spot) && (!best || h.dist < best.dist)) best = h; } if (best) return best; }
+      return pickAt(cx, cy); }
     if (game.inside) { const sh = ray.intersectObjects(house.spots.filter((s) => s.active && !s.hidden).map((s) => s.pick), false), ih = ray.intersectObjects(house.items.filter((it) => !it.wall || it.wall.group.visible).map((it) => it.pick), false), eh = ray.intersectObject(elianePick, false);
       const ds = sh.length ? sh[0].distance - 0.25 : 1e9, di = ih.length ? ih[0].distance : 1e9, de = eh.length && gardener.state === 'idle' ? eh[0].distance : 1e9, m = Math.min(ds, di, de);
-      if (m < 1e9) return m === ds ? { spot: sh[0].object.userData.spot } : m === de ? { thing: 'eliane' } : { hitem: ih[0].object.userData.item };
+      if (m < 1e9) return m === ds ? { spot: sh[0].object.userData.spot, dist: m } : m === de ? { thing: 'eliane', dist: m } : { hitem: ih[0].object.userData.item, dist: m };
       return ray.ray.intersectPlane(plane, hit) ? { ground: hit.clone() } : {}; }
     const sg = ray.intersectObjects(world.signPicks.filter((m) => !state.zones.includes(m.userData.zoneSign)), false);
     if (sg.length) return { sign: sg[0].object.userData.zoneSign };
@@ -151,21 +154,28 @@ async function boot() {
     if (ray.ray.intersectPlane(plane, hit)) return { ground: hit.clone() };
     return {};
   };
-  canvas.addEventListener('pointerdown', (e) => { canvas.setPointerCapture(e.pointerId); ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY }); if (ptrs.size === 1) { downAt = performance.now(); moved = 0; } else if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; pinch0 = Math.hypot(a.x - b.x, a.y - b.y); dist0 = cam.dist; moved = 99; } });
+  let x0 = 0, y0 = 0, slop = 8, dragPl = null;
+  const groundAt = (cx, cy) => { const r = canvas.getBoundingClientRect(); ndc.set(((cx - r.left) / r.width) * 2 - 1, -((cy - r.top) / r.height) * 2 + 1); ray.setFromCamera(ndc, camera); return ray.ray.intersectPlane(plane, hit) ? hit : null; };
+  canvas.addEventListener('pointerdown', (e) => { canvas.setPointerCapture(e.pointerId); ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY }); if (ptrs.size === 1) { downAt = performance.now(); moved = 0; x0 = e.clientX; y0 = e.clientY; slop = e.pointerType === 'mouse' ? 7 : 16; dragPl = null;
+      const pl = game.placing; if (pl && pl.x != null && started) { const g = groundAt(e.clientX, e.clientY), gp = pl.group ? pl.group.position : pl; if (g && Math.hypot(g.x - gp.x, g.z - gp.z) < (pl.def.r ?? Math.max(pl.def.w || 0.6, pl.def.d || 0.6) / 2) + 0.55) dragPl = { ox: pl.x - g.x, oz: pl.z - g.z }; } } // a finger on the piece being placed drags it
+ else if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; pinch0 = Math.hypot(a.x - b.x, a.y - b.y); dist0 = cam.dist; moved = 99; } });
   canvas.addEventListener('pointermove', (e) => {
     const p = ptrs.get(e.pointerId);
     if (!p) { if (e.pointerType === 'mouse' && started) { const h = pickAt(e.clientX, e.clientY); canvas.style.cursor = h.spot || h.thing || h.item || h.hitem || h.sign != null ? 'pointer' : 'grab'; } return; }
     const dx = e.clientX - p.x, dy = e.clientY - p.y; p.x = e.clientX; p.y = e.clientY;
-    if (ptrs.size === 1) { moved += Math.abs(dx) + Math.abs(dy); if (moved > 8) { cam.yaw -= dx * 0.006; cam.pitch = clamp(cam.pitch + dy * 0.004, 0.16, 1.3); } }
+    if (ptrs.size === 1) { moved = Math.max(moved, Math.hypot(e.clientX - x0, e.clientY - y0));
+      if (dragPl && game.placing) { if (moved > slop * 0.5) { const g = groundAt(e.clientX, e.clientY); if (g) game.placer().move(g.x + dragPl.ox, g.z + dragPl.oz); moved = Math.max(moved, 99); } }
+      else if (moved > slop) { cam.yaw -= dx * 0.006; cam.pitch = clamp(cam.pitch + dy * 0.004, 0.16, 1.3); } }
     else if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; const d = Math.hypot(a.x - b.x, a.y - b.y); if (pinch0 > 0) cam.dist = clamp(dist0 * (pinch0 / d), 3.5, 34); }
   });
   const up = (e) => {
     const had = ptrs.delete(e.pointerId); if (!had) return;
-    if (ptrs.size === 0 && moved <= 8 && performance.now() - downAt < 600 && started) {
+    if (ptrs.size === 0) dragPl = null;
+    if (ptrs.size === 0 && moved <= slop && performance.now() - downAt < 800 && started) {
       if (document.body.classList.contains('photo')) return;
       if (ui.open === 'modal') return;
       if (game.placing) { const r = canvas.getBoundingClientRect(); ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1); ray.setFromCamera(ndc, camera); if (ray.ray.intersectPlane(plane, hit)) game.placer().move(hit.x, hit.z); return; }
-      const h = pickAt(e.clientX, e.clientY);
+      const h = pickAt(e.clientX, e.clientY, e.pointerType === 'mouse' ? 0 : 20);
       if (h.sign != null) game.offerZone(h.sign);
       else if (h.item) game.tapItem(h.item);
       else if (h.hitem) { audio.sfx('click', 0.35); ui.furnCard(h.hitem); }

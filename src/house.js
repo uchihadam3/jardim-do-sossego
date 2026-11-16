@@ -138,7 +138,11 @@ export function createHouse() {
   const inner = (r) => [r.cx - CW / 2 + WT, r.cx + CW / 2 - WT, r.cz - CD / 2 + WT, r.cz + CD / 2 - WT];
   const doorZones = (r) => { const out = []; for (const w of H.walls) if (w.room === r && w.door) { const sd = SIDE[w.side], px = r.cx + sd.dx * (CW / 2), pz = r.cz + sd.dz * (CD / 2), a = 0.72, b = 0.85; out.push(sd.dx ? [Math.min(px, px - sd.dx * b), Math.max(px, px - sd.dx * b), pz - a, pz + a] : [px - a, px + a, Math.min(pz, pz - sd.dz * b), Math.max(pz, pz - sd.dz * b)]); } return out; };
   const rectOf = (it) => H.rect(it.def, it.rec.x, it.rec.z, it.rec.r);
-  // pose: { x, z, r } -> { ok, y, room, side, t, why }
+  // the nearest place where the piece is inside a room and clear of the walls (it goes right up against them)
+  H.fit = (def, x, z, rot) => { let room = H.roomAt(x, z); if (!room) { let bd = 1e9; for (const r of H.rooms) { const d = Math.hypot(x - clamp(x, r.cx - CW / 2, r.cx + CW / 2), z - clamp(z, r.cz - CD / 2, r.cz + CD / 2)); if (d < bd) { bd = d; room = r; } } if (!room) return { x, z }; }
+    const In = inner(room); if (def.kind === 'wall') return { x: clamp(x, In[0], In[1]), z: clamp(z, In[2], In[3]), room };
+    const q = quarter(rot), hw = (q % 2 ? def.d : def.w) / 2, hd = (q % 2 ? def.w : def.d) / 2, fx = In[1] - In[0] < hw * 2 ? room.cx : clamp(x, In[0] + hw, In[1] - hw), fz = In[3] - In[2] < hd * 2 ? room.cz : clamp(z, In[2] + hd, In[3] - hd); return { x: fx, z: fz, room }; };
+  // pose: { x, z, r } -> { ok, y, room, side, t, why, hit (what is in the way) }
   H.check = (def, pose, ignore = []) => {
     const room = H.roomAt(pose.x, pose.z); if (!room) return { ok: false, why: 'Só dentro de um cômodo da casa.' };
     const In = inner(room), others = H.items.filter((it) => !ignore.includes(it));
@@ -150,16 +154,16 @@ export function createHouse() {
       for (const it of others) if (it.def.kind === 'wall' && it.wall === w && Math.abs(it.rec.t - t) < (it.def.w + def.w) / 2 + 0.03) return { ...res, ok: false, why: 'Já tem uma coisa pendurada aí.' };
       return res; }
     const rc = H.rect(def, pose.x, pose.z, pose.r), res = { room, y: 0, ok: true };
-    if (rc[0] < In[0] - 0.005 || rc[1] > In[1] + 0.005 || rc[2] < In[2] - 0.005 || rc[3] > In[3] + 0.005) return { ...res, ok: false, why: 'Não cabe: está encostando na parede.' };
+    if (rc[0] < In[0] - 0.005 || rc[1] > In[1] + 0.005 || rc[2] < In[2] - 0.005 || rc[3] > In[3] + 0.005) return { ...res, ok: false, why: 'Este é grande demais para este cômodo.' };
     if (def.kind === 'rug') return res;
     if (def.kind === 'ceil') { for (const it of others) if (it.def.kind === 'ceil' && overlap(rc, rectOf(it))) return { ...res, ok: false, why: 'Já tem uma coisa pendurada aí.' }; return res; }
     if (def.kind === 'top') { let y = 0; for (const it of others) { if (it.def.kind !== 'floor') continue; const o = rectOf(it); if (pose.x > o[0] && pose.x < o[1] && pose.z > o[2] && pose.z < o[3]) { if (it.def.surf == null) return { ...res, ok: false, why: 'Em cima disso não fica de pé.' }; y = it.def.surf; res.on = it; } }
       for (const it of others) if (it.def.kind === 'top' && Math.abs((it.rec.y || 0) - y) < 0.05 && overlap(rc, rectOf(it), 0.02)) return { ...res, ok: false, why: 'Já tem um enfeite aí.' };
       if (y === 0) for (const dz of doorZones(room)) if (overlap(rc, dz)) return { ...res, ok: false, why: 'Deixe a passagem da porta livre.' };
       return { ...res, y }; }
-    for (const it of others) if (it.def.kind === 'floor' && overlap(rc, rectOf(it))) return { ...res, ok: false, why: 'Aí já tem um móvel.' };
-    for (const it of others) if (it.def.kind === 'top' && !(it.rec.y > 0) && overlap(rc, rectOf(it))) return { ...res, ok: false, why: 'Tem um enfeite no chão aí.' };
-    for (const dz of doorZones(room)) if (overlap(rc, dz)) return { ...res, ok: false, why: 'Deixe a passagem da porta livre.' };
+    for (const it of others) if (it.def.kind === 'floor' && overlap(rc, rectOf(it))) return { ...res, ok: false, why: 'Aí já tem um móvel.', hit: rectOf(it) };
+    for (const it of others) if (it.def.kind === 'top' && !(it.rec.y > 0) && overlap(rc, rectOf(it))) return { ...res, ok: false, why: 'Tem um enfeite no chão aí.', hit: rectOf(it) };
+    for (const dz of doorZones(room)) if (overlap(rc, dz)) return { ...res, ok: false, why: 'Deixe a passagem da porta livre.', hit: dz };
     return res;
   };
   // ----- pieces of furniture in the scene -----
@@ -169,7 +173,7 @@ export function createHouse() {
   H.makeGroup = (rec) => { const g = buildFurn(rec.k, rec.c1, rec.c2); return g; };
   H.add = (rec, group) => { const def = FURN_BY[rec.k]; if (!def) return null; group = group || H.makeGroup(rec);
     const bb = new THREE.Box3().setFromObject(group), h = Math.max(0.12, bb.max.y - Math.min(0, bb.min.y)), y0 = def.kind === 'wall' || def.kind === 'ceil' ? (bb.min.y + bb.max.y) / 2 : h / 2, ph = def.kind === 'wall' || def.kind === 'ceil' ? Math.max(0.2, bb.max.y - bb.min.y) : h;
-    const pick = new THREE.Mesh(new THREE.BoxGeometry(Math.max(0.22, def.w), ph, Math.max(0.16, def.d)), pickMat), it = { rec, def, group, pick, pickY: y0, pop: 1, on: !rec.off }; pick.userData.item = it;
+    const pick = new THREE.Mesh(new THREE.BoxGeometry(Math.max(0.3, def.w), Math.max(0.2, ph), Math.max(def.kind === 'wall' ? 0.16 : 0.26, def.d)), pickMat), it = { rec, def, group, pick, pickY: y0, pop: 1, on: !rec.off }; pick.userData.item = it;
     H.items.push(it); H.place(it); H.glow(it); H.nav.invalidate(); return it; };
   H.drop = (it, keep) => { const i = H.items.indexOf(it); if (i >= 0) H.items.splice(i, 1); if (it.pick.parent) it.pick.parent.remove(it.pick); if (!keep && it.group.parent) it.group.parent.remove(it.group); H.nav.invalidate(); };
   H.regroup = (it) => { const old = it.group, g = H.makeGroup(it.rec); g.position.copy(old.position); g.rotation.copy(old.rotation); g.scale.copy(old.scale); if (old.parent) { old.parent.add(g); old.parent.remove(old); } old.traverse((o) => { if (o.isMesh) o.geometry.dispose(); }); it.group = g; H.glow(it); };

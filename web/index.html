@@ -28,6 +28,7 @@ body.photo #ui>*:not(#photo-exit),body.photo #tags,body.photo #floats{display:no
 .pill .ic{width:22px;height:22px}
 .pill.bump{animation:bump .35s}
 @keyframes bump{40%{transform:scale(1.14)}}
+@keyframes pgR{from{transform:translateX(34px);opacity:.25}} @keyframes pgL{from{transform:translateX(-34px);opacity:.25}} .seeds.inR{animation:pgR .2s ease-out} .seeds.inL{animation:pgL .2s ease-out}
 .pill.lvl{padding-right:10px}
 .pill.lvl .lv{display:grid;place-items:center;width:24px;height:24px;border-radius:50%;background:var(--leaf);color:#fff;font-size:14px}
 .pill.lvl .bar{width:54px}
@@ -299,7 +300,7 @@ body.photo #photo-exit{display:inline-flex}
 .q-w{display:flex;align-items:center;gap:6px;margin-top:8px;padding:5px 10px;border-radius:999px;background:var(--paper-2);font-family:var(--display);font-weight:500;font-size:13px;color:var(--ink);width:100%} .q-w b{margin-left:auto;font-variant-numeric:tabular-nums;color:var(--leaf-d)} .q-w .ic{width:15px;height:15px} .q-w.all{background:#eef6e2}
 .stars{font-style:normal;color:var(--honey-d);font-size:.8em;letter-spacing:1px} .alb{position:relative} .alb .stars{position:absolute;top:4px;right:6px;font-size:12px} .price.box{color:var(--leaf-d);font-size:.9em}
 #b-exit{position:absolute;left:max(14px,env(safe-area-inset-left,0px));bottom:max(16px,env(safe-area-inset-bottom,0px));display:none;background:var(--paper);box-shadow:var(--shadow)}
-body.indoors.playing #b-exit{display:inline-flex} body.photo #b-exit,body.placing #b-exit{display:none!important}
+body.indoors.playing #b-exit{display:inline-flex} body.photo #b-exit,body.placing #b-exit,#card.on~#b-exit,#sheet.on~#b-exit,#placebar.on~#b-exit{display:none!important}
 #fade{position:fixed;inset:0;background:#f6f1e4;opacity:0;pointer-events:none;transition:opacity .32s;z-index:40} #fade.on{opacity:1;pointer-events:auto}
 .rtag{background:var(--paper)} .cmap{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:6px 0 12px}
 .croom{aspect-ratio:1.15;border-radius:12px;border:2px dashed var(--line);background:var(--paper-2);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:4px;text-align:center;font-family:var(--display);font-weight:600;font-size:12.5px;line-height:1.1;color:var(--ink-soft)}

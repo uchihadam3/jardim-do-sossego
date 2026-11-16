@@ -47,15 +47,21 @@ export function attachHome(G, { S, house: H, fx, audio, gardener, ui, addXp, lev
     if (d.kind === 'wall' && res.room && res.side != null) { const w = H.wallPos(res.room.id, res.side, res.t); p.group.position.copy(w.p); p.group.rotation.y = w.ry; mark.position.set(w.p.x + w.n.x * 0.2, 0.03, w.p.z + w.n.z * 0.2); mark.rotation.z = -w.ry; mark.scale.set(d.w, 0.4, 1); }
     else { p.group.position.set(p.x, res.y || 0, p.z); p.group.rotation.y = -(p.rot % 4) * Math.PI / 2; const rc = H.rect(d, p.x, p.z, p.rot); mark.position.set(p.x, (res.y || 0) + 0.03, p.z); mark.rotation.z = 0; mark.scale.set(Math.max(0.3, rc[1] - rc[0]), Math.max(0.3, rc[3] - rc[2]), 1); }
     mark.visible = true; mark.material.color.setHex(p.ok ? 0x6ab85a : 0xe2685f); for (const k of p.kids || []) { const v = new V3(k.lx, 0, k.lz).applyAxisAngle(new V3(0, 1, 0), -(p.rot % 4) * Math.PI / 2); k.it.group.position.set(p.x + v.x, d.surf, p.z + v.z); k.it.group.rotation.y = -(((k.r0 + p.rot - p.rot0) % 4 + 4) % 4) * Math.PI / 2; } };
+  // the piece goes to the nearest place where it fits: against the wall instead of into it, beside another piece instead of over it
+  const settle = (p) => { const d = p.def, at = (x, z) => { const f = H.fit(d, x, z, p.rot); return { x: f.x, z: f.z, res: H.check(d, { x: f.x, z: f.z, r: p.rot }, p.ignore) }; }, slides = (c) => { const rc = H.rect(d, c.x, c.z, p.rot), o = c.res.hit, e = 0.001; return [[o[0] - rc[1] - e, 0], [o[1] - rc[0] + e, 0], [0, o[2] - rc[3] - e], [0, o[3] - rc[2] + e]]; };
+    const c0 = at(p.x, p.z); p.x = c0.x; p.z = c0.z; if (c0.res.ok || !c0.res.hit || d.kind !== 'floor') return; let best = null;
+    const tryAt = (x, z, cost) => { const c = at(x, z), k = cost + Math.hypot(c.x - p.x, c.z - p.z) * 0.001; if (c.res.ok && (!best || k < best.k)) best = { x: c.x, z: c.z, k }; return c; };
+    for (const [dx, dz] of slides(c0)) { const c1 = tryAt(c0.x + dx, c0.z + dz, Math.abs(dx) + Math.abs(dz)); if (!c1.res.ok && c1.res.hit) for (const [ex, ez] of slides(c1)) tryAt(c1.x + ex, c1.z + ez, Math.abs(dx) + Math.abs(dz) + Math.abs(ex) + Math.abs(ez)); }
+    if (best && best.k < 2.2) { p.x = best.x; p.z = best.z; } };
   const begin = (p) => { G.clearTasks(); ui.closeCards(); ui.closeModal(); const gp = gardener.group.position;
     if (p.x == null) { const room = H.roomAt(gp.x, gp.z) || ROOM_BY.sala; p.x = snap(clamp(gp.x + Math.sin(gardener.heading) * 1.3, room.cx - CW / 2 + 0.6, room.cx + CW / 2 - 0.6)); p.z = snap(clamp(gp.z + Math.cos(gardener.heading) * 1.3, room.cz - CD / 2 + 0.6, room.cz + CD / 2 - 0.6)); }
-    if (p.group.parent !== scene) scene.add(p.group); p.ignore = p.ignore || []; G.placing = p; showGhost(); ui.placeBar(p.def, true); };
+    if (p.group.parent !== scene) scene.add(p.group); p.ignore = p.ignore || []; G.placing = p; settle(p); showGhost(); ui.placeBar(p.def, true); };
   Object.assign(home, {
     buy: (id) => { const def = FURN_BY[id]; if (!def) return; const have = SH.stored[id] || 0;
       if (!have) { if (level() < def.lvl) { audio.sfx('error'); ui.toast(`${def.name} chega no nível ${def.lvl}`, 'warn'); return; } if (S.coins < def.price) { audio.sfx('error'); ui.toast(`Faltam ${def.price - S.coins} moedas para ${def.name}`, 'warn'); return; } }
       begin({ id, def, group: buildFurn(id), rot: 0, rot0: 0, mode: have ? 'stored' : 'new' }); },
-    move: (x, z) => { const p = G.placing; if (!p) return; const f = p.def.kind === 'top' ? 2 : 1; p.x = snap(x * f) / f; p.z = snap(z * f) / f; showGhost(); },
-    rotate: () => { const p = G.placing; if (!p || p.def.kind === 'wall') return; p.rot = (p.rot + 1) % 4; audio.sfx('click', 0.4); showGhost(); },
+    move: (x, z) => { const p = G.placing; if (!p) return; const f = p.def.kind === 'top' ? 2 : 1; p.x = snap(x * f) / f; p.z = snap(z * f) / f; settle(p); showGhost(); },
+    rotate: () => { const p = G.placing; if (!p || p.def.kind === 'wall') return; p.rot = (p.rot + 1) % 4; audio.sfx('click', 0.4); settle(p); showGhost(); },
     confirm: () => { const p = G.placing; if (!p) return; if (!p.ok) { audio.sfx('error'); ui.toast(p.res.why || 'Aqui não cabe.', 'warn'); return; }
       const rec = p.mode === 'move' ? p.rec : { k: p.id };
       if (p.mode !== 'move' && !H.claimSpots(rec)) { audio.sfx('error'); ui.toast('A casa já está com todos os vasos que cabem. Guarde algum para pôr este.', 'warn'); return; }
