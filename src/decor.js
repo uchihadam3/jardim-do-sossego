@@ -14,7 +14,7 @@ export const DECO = [
   { id: 'regador', name: 'Regador antigo', price: 100, lvl: 2, beauty: 10, r: 0.3, cat: 'Enfeites', info: 'Virou vaso: transborda de flores.' },
   { id: 'flamingo', name: 'Flamingo', price: 90, lvl: 2, beauty: 10, r: 0.25, cat: 'Enfeites', info: 'Cor-de-rosa e elegante numa perna só.' },
   { id: 'coelho', name: 'Coelhinho de pedra', price: 110, lvl: 2, beauty: 10, r: 0.25, cat: 'Enfeites', info: 'De orelhas em pé, vigiando as cenouras.' },
-  { id: 'patos', name: 'Família de patos', price: 120, lvl: 3, beauty: 10, r: 0.38, cat: 'Enfeites', info: 'Mamãe pata e dois patinhos de cerâmica.' },
+  { id: 'patos', name: 'Família de patos', price: 120, lvl: 3, beauty: 10, r: 0.38, cat: 'Enfeites', water: 1, info: 'Mamãe pata e dois patinhos. Ficam no gramado ou nadando na lagoa.' },
   { id: 'lampiao', name: 'Lampião', price: 130, lvl: 3, beauty: 12, r: 0.22, cat: 'Luzes', info: 'Acende sozinho quando escurece.' },
   { id: 'vaso_azul', name: 'Vaso de cerâmica azul', price: 150, lvl: 3, beauty: 12, r: 0.35, cat: 'Enfeites', info: 'Grandão, esmaltado, com folhagem.' },
   { id: 'cerca_viva', name: 'Cerca-viva', price: 160, lvl: 3, beauty: 12, r: 0.75, cat: 'Verde', info: 'Um bloco de buxinho bem aparado.' },

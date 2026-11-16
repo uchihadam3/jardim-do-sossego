@@ -11,6 +11,7 @@ import { WARDROBE, WTABS, PALETTE, PATTERNS, HAIR_COLORS } from './wardrobe.js';
 import { FURN, FURN_BY, CATS } from './furncore.js';
 import { ROOMS, WALLS, FLOORS, wallCanvas, floorCanvas } from './house.js';
 import { RECIPES, canCook } from './recipes.js';
+import { FRIENDS, heartsOf, HEART_AT } from './visitor.js';
 
 const $ = (s) => document.querySelector(s);
 const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html !== undefined) e.innerHTML = html; return e; };
@@ -45,6 +46,21 @@ export function createUI({ project, thumbs, audio }) {
     while (toasts.children.length > 3) toasts.firstChild.remove();
     setTimeout(() => t.classList.add('out'), 3400); setTimeout(() => t.remove(), 3900);
   };
+  // a speech balloon that follows whoever is talking
+  const says = [];
+  U.say = (pos, text, ms = 3600) => { for (const s of says) if (s.pos === pos) s.until = 0; const f = el('div', 'say', text); floats.appendChild(f); says.push({ f, pos, until: performance.now() + ms }); U.sayTick(); };
+  U.sayTick = () => { const now = performance.now(); for (let i = says.length - 1; i >= 0; i--) { const s = says[i]; if (now > s.until) { s.f.remove(); says.splice(i, 1); continue; } const p = project(s.pos()); s.f.style.display = p.vis && U.open !== 'modal' ? '' : 'none'; s.f.style.left = p.x + 'px'; s.f.style.top = p.y + 'px'; } };
+  const heartsHtml = (n) => `<span class="hearts">${'<i class="on">♥</i>'.repeat(n)}${'<i>♥</i>'.repeat(5 - n)}</span>`;
+  // talking to a neighbour who came to visit
+  U.neighbour = (V) => { U.closeCards(); U.open = 'card'; U.cardFor = 'neighbour'; let line = V.hello(), mode = '';
+    const draw = () => { const me = V.me, h = V.hearts, next = V.next, order = V.order(), gifts = mode === 'gift' ? V.gifts() : [];
+      card.innerHTML = `<div class="c-th c-face">${ICON('flower')}</div><div class="c-b"><div class="c-n"><b>${me.n}</b>${heartsHtml(h)}</div>
+        <div class="c-say">${line}</div>${mode === 'gift' ? `<div class="c-gifts">${gifts.length ? gifts.map((k) => `<button class="chip ${me.love(SPECIES[k]) && h >= 1 ? 'fav' : ''}" data-give="${k}"><img alt="" ${TH(k)}>${U.game.state.basket[k]}</button>`).join('') : '<small>A cesta está vazia. Recolha presentes das plantas para ter o que dar.</small>'}</div>` : `<div class="c-row"><small style="width:auto;text-align:left">Gosta de ${me.likes}.${next ? ` Faltam ${next - V.pts} para o próximo coração.` : ' Amiga do peito!'}</small></div>`}
+        <div class="c-act">${mode === 'gift' ? '<button class="btn ghost" data-a="back">Voltar</button>' : `<button class="btn" data-a="talk">Conversar</button><button class="btn ghost" data-a="gift">Dar um presente</button>${order ? '<button class="btn" data-a="order">Entregar encomenda</button>' : ''}`}<button class="btn ghost" data-a="close">Tchau</button></div></div>`;
+      card.querySelectorAll('button[data-a]').forEach((b) => (b.onclick = () => { const a = b.dataset.a; click(); if (a === 'talk') { line = V.talk(); draw(); } else if (a === 'gift') { if (V.canGift()) mode = 'gift'; else line = V.give(''); draw(); } else if (a === 'back') { mode = ''; draw(); } else if (a === 'order') { const l = V.deliver(); if (l) line = l; if (U.open === 'card') draw(); } else U.closeCards(); }));
+      card.querySelectorAll('[data-give]').forEach((b) => (b.onclick = () => { line = V.give(b.dataset.give); mode = ''; if (U.open === 'card' && U.cardFor === 'neighbour') draw(); })); };
+    draw(); card.classList.add('on'); };
+  U.friendUp = (name, h, coins, got) => setTimeout(() => openModal(`<h2>Amizade com ${name}</h2><p class="bighearts">${heartsHtml(h)}</p><p>${h >= 5 ? 'Vocês viraram amigas do peito!' : 'Vocês estão cada vez mais amigas.'} Ela deixou um presente: <b>${got.join(' e ')}</b> e ${coins} moedas.</p><div class="row"><button class="btn big" data-close>Que carinho!</button></div>`, 'small center'), 900);
   U.floatText = (v, text, kind) => {
     const p = project(v); if (!p.vis) return;
     const f = el('div', 'float ' + kind, (kind === 'coin' ? ICON('coin') : '') + text); f.style.left = p.x + 'px'; f.style.top = p.y + 'px'; floats.appendChild(f); setTimeout(() => f.remove(), 1500);
@@ -118,7 +134,7 @@ export function createUI({ project, thumbs, audio }) {
     };
     draw(); cardUpd = draw; card.classList.add('on');
   };
-  U.closeCards = () => { sheet.classList.remove('on'); card.classList.remove('on'); pickSpot = null; cardUpd = null; cardSpot = null; if (U.open === 'picker' || U.open === 'card') U.open = null; };
+  U.closeCards = () => { U.cardFor = null; sheet.classList.remove('on'); card.classList.remove('on'); pickSpot = null; cardUpd = null; cardSpot = null; if (U.open === 'picker' || U.open === 'card') U.open = null; };
 
   // ---------- modals ----------
   const openModal = (html, cls = '') => { U.closeCards(); U.dressing = false; modal.innerHTML = `<div class="panel ${cls}">${html}</div>`; modal.classList.add('on'); U.open = 'modal';
@@ -182,7 +198,7 @@ export function createUI({ project, thumbs, audio }) {
     html: `<p class="hint">Quando duas flores diferentes florescem lado a lado, às vezes deixam uma semente especial. Recolha os presentes delas e fique de olho.</p><div class="list">${H.map((h) => { const got = S.hybrids.includes(h.id), [a, b] = h.hybrid.map((id) => SPECIES[id]);
       return `<div class="item rare ${got ? 'own' : ''}"><img class="r-th ${got ? '' : 'q'}" alt="" ${TH(h.id)}><div><b>${got ? h.name : '? ? ?'}</b><small>${got ? h.info : `Dizem que <i>${a.name}</i> e <i>${b.name}</i>, lado a lado, guardam um segredo.`}</small></div><div class="r-par"><img alt="" ${TH(a.id)}><span>+</span><img alt="" ${TH(b.id)}></div></div>`; }).join('')}</div>` }; };
   U.critterTab = () => { const S = U.game.state; return { count: `${S.seen.length}/${CRITTERS.length}`,
-    html: `<p class="hint">Cada visitante chega sozinho quando o jardim tem aquilo de que ele gosta.</p><div class="albgrid crit">${CRITTERS.map((c) => { const got = S.seen.includes(c.id); return `<div class="alb ${got ? 'got' : ''}"><img alt="" ${TH('c:' + c.id)}><b>${got ? c.name : '? ? ?'}</b><small>${c.hint}</small></div>`; }).join('')}</div>` }; };
+    html: `<p class="hint">As vizinhas passam para visitar. Converse, dê um presente da cesta e a amizade cresce.</p><div class="friends">${FRIENDS.map((f) => { const met = S.friends && S.friends[f.n] !== undefined, pt = met ? S.friends[f.n] : 0; return `<div class="friend ${met ? 'got' : ''}"><b>${met ? f.n : '? ? ?'}</b>${heartsHtml(heartsOf(pt))}<small>${met ? 'Gosta de ' + f.likes : 'Ainda não veio visitar'}</small></div>`; }).join('')}</div><p class="hint">Cada visitante chega sozinho quando o jardim tem aquilo de que ele gosta.</p><div class="albgrid crit">${CRITTERS.map((c) => { const got = S.seen.includes(c.id); return `<div class="alb ${got ? 'got' : ''}"><img alt="" ${TH('c:' + c.id)}><b>${got ? c.name : '? ? ?'}</b><small>${c.hint}</small></div>`; }).join('')}</div>` }; };
   U.rare = (h) => setTimeout(() => openModal(`<div class="rare-hero"><img alt="" ${TH(h.id)}></div><h2>Raridade descoberta!</h2><p><b>${h.name}</b>. ${h.info}</p><p class="hint">Ela já está entre as suas sementes.</p><div class="row"><button class="btn big" data-close>Que maravilha!</button></div>`, 'small center'), 600);
   U.seasonInfo = () => { const G = U.game, se = G.sys.season(), lvl = G.level();
     const fav = SPECIES_LIST.filter((s) => s.loves && s.loves.includes(se.id) && s.lvl <= lvl && (!s.hybrid || G.state.hybrids.includes(s.id))), only = SPECIES_LIST.filter((s) => s.season === se.id);
@@ -442,7 +458,7 @@ export function createUI({ project, thumbs, audio }) {
     for (const z of zones) { const b = tagEls[z.id]; if (!b) continue; if (inside || S.zones.includes(z.id) || Math.hypot(z.tag[0] - gp.x, z.tag[1] - gp.z) > 19) { b.hidden = true; continue; }
       const p = project(new V3(z.tag[0], z.id === 1 ? 2.25 : 1.75, z.tag[1])); b.hidden = !p.vis; if (p.vis) { b.style.transform = `translate(-50%,-100%) translate(${p.x.toFixed(1)}px,${p.y.toFixed(1)}px)`; b.classList.toggle('can', S.coins >= z.cost); } }
     if (cardUpd && (U._ct = (U._ct || 0) + 1) % 20 === 0) cardUpd();
-    if (!pumpThumbs() && thumbs.warm) thumbs.warm();
+    U.sayTick(); if (!pumpThumbs() && thumbs.warm) thumbs.warm();
   };
   U.focus = () => {};
   return U;

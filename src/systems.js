@@ -3,6 +3,7 @@
 import * as THREE from 'three';
 import { SPECIES, SPECIES_LIST } from './species.js';
 import { ZONES, DECOR } from './world.js';
+import { FRIENDS, heartsOf } from './visitor.js';
 
 export const SEASONS = [
   { id: 0, name: 'Primavera', icon: 'spring', line: 'Tudo quer brotar.' },
@@ -38,6 +39,7 @@ export const ACH = [
   ...T('streak', 'Visita querida', 'Abra a caixa de correio em # dias', [[3, 60], [7, 200], [21, 800]], (S) => S.daily.streak || 0),
   ...T('zone', 'Jardim que cresce', 'Abra # áreas novas', [[2, 80], [4, 300], [6, 1000]], (S) => S.zones.length - 1),
   ...T('decor', 'Capricho', 'Tenha # decorações no jardim', [[2, 60], [8, 300], [20, 900], [40, 2500]], (S) => S.decor.length + (S.items || []).length),
+  ...T('friends', 'Boa vizinha', 'Some # corações de amizade com as vizinhas', [[2, 100], [6, 400], [12, 1200], [20, 4000]], (S) => FRIENDS.reduce((a, f) => a + heartsOf((S.friends || {})[f.n]), 0)),
   ...T('style', 'Estilosa', 'Tenha # peças no guarda-roupa', [[3, 80], [12, 400], [30, 1500], [70, 5000]], (S) => Object.keys(S.own || {}).length),
   ...T('beauty', 'Encanto', 'Chegue a # de beleza', [[150, 60], [600, 250], [2000, 900]], (S, G) => G.beauty()),
   ...T('hybrid', 'Jardineira curiosa', 'Descubra # raridades', [[1, 80], [5, 400], [14, 1500]], (S) => (S.hybrids || []).length),

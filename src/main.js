@@ -110,7 +110,7 @@ async function boot() {
   ui.store = store;
   ui.focus = (x, z) => { cam.focus.set(x, 0.8, z); cam.focusT = 3.2; };
   const critters = createCritters(scene, world, { S: state, G: game, env, fx, ui, audio });
-  const visitor = createVisitor(scene, { S: state, G: game, env, fx });
+  const visitor = createVisitor(scene, { S: state, G: game, env, fx, ui, audio, world, gardener, nav }); game.visitor = visitor;
   game.init();
   thumbs.queue = SPECIES_LIST.filter((s) => s.lvl <= game.level() + 2).map((s) => s.id); // filled in little by little while she plays
   const returning = game.count() > 0 || state.stats.planted > 0;
@@ -146,7 +146,7 @@ async function boot() {
     const hits = ray.intersectObjects(world.pickables.filter((m) => m.visible), false);
     const ih = ray.intersectObjects(world.items.map((it) => it.pick), false);
     if (ih.length && (!hits.length || ih[0].distance < hits[0].distance)) return { item: ih[0].object.userData.item };
-    const th = ray.intersectObjects(Object.values(world.things).map((t) => t.pick), false);
+    const th = ray.intersectObjects([...Object.values(world.things).map((t) => t.pick), ...(visitor.pick ? [visitor.pick] : [])], false);
     const eh = ray.intersectObject(elianePick, false);
     if (eh.length && (!hits.length || eh[0].distance < hits[0].distance) && (!th.length || eh[0].distance < th[0].distance) && gardener.state === 'idle') return { thing: 'eliane' };
     if (th.length && (!hits.length || th[0].distance < hits[0].distance)) return { thing: th[0].object.userData.thing };

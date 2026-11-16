@@ -335,7 +335,10 @@ export function createWorld(scene, q, unlocked, hooks = {}) {
   world.update = (dt, t) => { for (const f of world.tickers) f(dt, t); };
   // ornaments placed by the player
   world.items = [];
-  world.canPlace = (x, z, r, ignore, zones) => {
+  world.inPond = inPond;
+  world.canPlace = (x, z, r, ignore, zones, water) => {
+    if (water && inPond(x, z, -r * 0.7)) { const zn = zoneAt(x, z); if (zn >= 0 && !zones.includes(zn)) return false; // things that float may go on the pond
+      for (const s of world.spots) if (s.type === 'pond' && Math.hypot(s.pos.x - x, s.pos.z - z) < r + 0.3) return false; for (const it of world.items) if (it !== ignore && Math.hypot(it.rec.x - x, it.rec.z - z) < r + it.def.r) return false; return true; }
     if (Math.abs(x) > LAND + 0.05 - r || z > 14.45 - r || z < -8.95 + r) return false;
     if (Math.abs(x) < 5.0 + r && z < -4.7 + r) return false;
     const zn = zoneAt(x, z); if (zn >= 0 && !zones.includes(zn)) return false;

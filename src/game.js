@@ -113,7 +113,7 @@ const QUESTS = [
 ];
 
 const fresh = () => ({ v: 1, coins: 45, xp: 0, zones: [0], decor: [], upg: [], plants: {}, quest: 0, album: [], stats: { planted: 0, watered: 0, collected: 0, blooms: 0, orders: 0, weeds: 0, prunes: 0, fert: 0 }, hour: 8.6, pace: PACE_V, days: 0, dayKey: '', last: Date.now(), t0: Date.now(), tips: {},
-  recent: [], style: { own: [] }, wear: { ...WEAR0 }, tint: {}, own: {}, seedbox: {}, mast: {}, recipes: {}, items: [], stored: {}, basket: {}, orders: [], orderT: 0, adubo: 0, daily: { last: '', streak: 0, best: 0 }, weeds: {}, wilt: {}, ach: {}, log: [], hybrids: [], seen: [], seasonsSeen: [], rare: {}, paint: {}, outfit: {}, settings: { music: 0.6, sfx: 0.8, quality: 'auto', time: 'auto' } });
+  recent: [], style: { own: [] }, wear: { ...WEAR0 }, tint: {}, own: {}, seedbox: {}, mast: {}, recipes: {}, friends: {}, items: [], stored: {}, basket: {}, orders: [], orderT: 0, adubo: 0, daily: { last: '', streak: 0, best: 0 }, weeds: {}, wilt: {}, ach: {}, log: [], hybrids: [], seen: [], seasonsSeen: [], rare: {}, paint: {}, outfit: {}, settings: { music: 0.6, sfx: 0.8, quality: 'auto', time: 'auto' } });
 
 // Turns whatever was stored (possibly by an older version of the game) into a complete, current state.
 export function normalize(raw) {
@@ -125,7 +125,7 @@ export function normalize(raw) {
   for (const k of ['zones', 'decor', 'upg', 'album', 'orders', 'log', 'hybrids', 'seen', 'seasonsSeen', 'items', 'recent']) if (!Array.isArray(s[k])) s[k] = fresh()[k];
   for (const k of ['plants', 'tips', 'basket', 'weeds', 'wilt', 'ach', 'rare', 'stored']) if (!s[k] || typeof s[k] !== 'object') s[k] = {};
   if (!s.style || !Array.isArray(s.style.own)) s.style = { own: [] };
-  if (oldWardrobe) migrateWardrobe(s); for (const k of ['wear', 'tint', 'own', 'seedbox', 'mast', 'recipes']) if (!s[k] || typeof s[k] !== 'object') s[k] = k === 'wear' ? { ...WEAR0 } : {};
+  if (oldWardrobe) migrateWardrobe(s); for (const k of ['wear', 'tint', 'own', 'seedbox', 'mast', 'recipes', 'friends']) if (!s[k] || typeof s[k] !== 'object') s[k] = k === 'wear' ? { ...WEAR0 } : {};
   if (!s.zones.includes(0)) s.zones.unshift(0); if (!s.t0) s.t0 = Date.now();
   return s;
 }
@@ -147,7 +147,7 @@ export function createGame({ scene, world, fx, audio, gardener, nav: gardenNav, 
   const save = () => G.save();
   G.reset = async () => { G.save = () => {}; if (store) await store.wipe(); else { try { localStorage.removeItem(SAVE_KEY); } catch (e) {} } };
   const level = () => { let l = 1; while (l < LV.length && S.xp >= LV[l]) l++; return l; };
-  G.level = level;
+  G.level = level; G.addCoins = (n) => addCoins(n); G.addXp = (n) => addXp(n);
   const has = (u) => S.upg.includes(u);
   const waterMax = () => WATER_MAX * (has('can2') ? 2 : 1);
   const waterR = () => (has('can2') ? 3.3 : has('can1') ? 2.2 : 1.35);
@@ -298,7 +298,7 @@ export function createGame({ scene, world, fx, audio, gardener, nav: gardenNav, 
     const it = { rec, def, group, pick, pop: animate ? 0 : 1 }; pick.userData.item = it; items.push(it);
     if (def.prod) { it.bub = makeSprite(bubbleMat.gift, 0.46); it.bub.position.set(rec.x, h + 0.35, rec.z); } return it; };
   const dropItem = (it, keepGroup) => { if (it.bub) scene.remove(it.bub); if (!keepGroup) scene.remove(it.group); scene.remove(it.pick); const i = items.indexOf(it); if (i >= 0) items.splice(i, 1); };
-  const showGhost = () => { const p = G.placing; if (!p) { ring.visible = false; return; } p.group.position.set(p.x, 0, p.z); p.group.rotation.y = p.rot; p.ok = world.canPlace(p.x, p.z, p.def.r, null, S.zones);
+  const showGhost = () => { const p = G.placing; if (!p) { ring.visible = false; return; } p.group.position.set(p.x, 0, p.z); p.group.rotation.y = p.rot; p.ok = world.canPlace(p.x, p.z, p.def.r, null, S.zones, p.def.water);
     ring.visible = true; ring.position.set(p.x, 0.045, p.z); ring.scale.setScalar(Math.max(0.3, p.def.r)); ring.material.color.setHex(p.ok ? 0x6ab85a : 0xe2685f); };
   const beginPlacing = (p) => { cancelAll(); ui.closeCards(); ui.closeModal(); const gp = gardener.group.position; if (p.x == null) { p.x = Math.round((gp.x + Math.sin(gardener.heading) * (1.2 + p.def.r)) * 4) / 4; p.z = Math.round((gp.z + Math.cos(gardener.heading) * (1.2 + p.def.r)) * 4) / 4; }
     if (!p.group.parent) scene.add(p.group); G.placing = p; showGhost(); ui.placeBar(p.def); };
@@ -327,7 +327,8 @@ export function createGame({ scene, world, fx, audio, gardener, nav: gardenNav, 
   G.tapItem = (it) => { if (it.def.prod && it.rec.pn) { audio.sfx('click', 0.35); ui.closeCards(); G.takeProd(it); return; } audio.sfx('click', 0.35); ui.decoCard(it); };
   const tickItems = (dt) => { for (const it of items) { const u = it.group.userData;
       if (it.def.prod) { const r = it.rec; if ((r.pn || 0) < PROD_MAX) { r.pt = (r.pt || 0) + dt; if (r.pt >= it.def.prod.every) { r.pt = 0; r.pn = (r.pn || 0) + 1; audio.sfx('pop', 0.3, 1.2); } } it.bub.visible = (r.pn || 0) > 0 && !G.inside; it.bub.position.y = Math.max(1.1, it.pick.position.y * 2) + 0.4 + Math.sin(G.time * 2.4 + r.x) * 0.04; } if (u.tick) u.tick(dt, G.time, env.night, fx, it.group.position); if (u.glow) for (const m of u.glow) m.emissiveIntensity = m.userData.e * Math.max(env.night, u.dayGlow || 0);
-      if (it.pop < 1) { it.pop = Math.min(1, it.pop + dt * 2.2); it.group.scale.setScalar(0.6 + 0.4 * easeOutBack(it.pop)); } }
+      if (it.pop < 1) { it.pop = Math.min(1, it.pop + dt * 2.2); it.group.scale.setScalar(0.6 + 0.4 * easeOutBack(it.pop)); }
+      if (it.def.water && world.inPond(it.rec.x, it.rec.z)) { const ph = it.rec.x * 3 + it.rec.z; it.group.position.y = 0.012 + Math.sin(G.time * 1.3 + ph) * 0.012; it.group.rotation.z = Math.sin(G.time * 0.9 + ph) * 0.03; } } // floating on the pond
     const p = G.placing; if (p) { const u = p.group.userData; if (u.tick) u.tick(dt, G.time, env.night, null, p.group.position); ring.material.opacity = 0.6 + 0.25 * Math.sin(G.time * 5); } };
 
   const refreshMarkers = () => { for (const spot of world.spots) V[spot.id].plus.visible = live(spot) && !spot.hidden && !S.plants[spot.id] && !spot.pending; };
@@ -366,7 +367,7 @@ export function createGame({ scene, world, fx, audio, gardener, nav: gardenNav, 
     const at = spot.pos.clone(); at.y += V[spot.id].h * 0.7 + 0.2; fx.sparkle(at, 18, 0xffd0e0); ui.floatText(at, '+' + amt, 'coin'); audio.sfx('coin', 0.6, 1.15); addXp(Math.ceil(amt / 3)); ui.hud(); G.sys.afterGift(spot.id); save(); };
   G.fertilize = (spot) => { const p = S.plants[spot.id]; if (!p || S.adubo < 1) return; const sp = SPECIES[p.sp]; if (p.grown >= sp.grow) { ui.toast('Esta planta já está adulta', 'info'); return; }
     S.adubo--; S.stats.fert = (S.stats.fert || 0) + 1; p.grown = Math.min(sp.grow, p.grown + sp.grow * 0.25); const at = spot.pos.clone(); at.y += 0.3; fx.sparkle(at, 20, 0xb8f08a, 0.3); audio.sfx('bloom', 0.6, 1.2); addXp(2); save(); };
-  G.tapThing = (kind) => { audio.sfx('click', 0.35); if (kind === 'orders') ui.orders(); else if (kind === 'mail') ui.daily(); else if (kind === 'eliane') ui.wardrobe(); else if (kind === 'house') ui.door(); };
+  G.tapThing = (kind) => { audio.sfx('click', 0.35); if (kind === 'orders') ui.orders(); else if (kind === 'mail') ui.daily(); else if (kind === 'eliane') ui.wardrobe(); else if (kind === 'house') ui.door(); else if (kind === 'visitor' && G.visitor) G.visitor.tap(); };
   const styleOf = (k) => { const o = STYLE[k].opts; return o.find((x) => x[0] === S.style[k]) || o[0]; };
   G.applyStyle = () => { gardener.wear(resolveWear(S.wear, S.tint));
     const t = styleOf('trim'), key = [styleOf('wall')[0], t[0], styleOf('fence')[0]].join();
