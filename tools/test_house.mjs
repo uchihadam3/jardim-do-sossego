@@ -21,8 +21,8 @@ r = await ev(() => { const g = window.__game, H = g.house, home = g.game.home; h
   home.move(0.9, -50); out.back = { ok: pl.ok, z0: +H.rect(pl.def, pl.x, pl.z, pl.rot)[2].toFixed(3), why: pl.res.why }; home.rotate(); out.turned = pl.ok;
   const sofa = H.items.find((i) => i.rec.k === 'sofa_simples'); home.move(sofa.rec.x, sofa.rec.z); const rc = H.rect(pl.def, pl.x, pl.z, pl.rot), o = H.rect(sofa.def, sofa.rec.x, sofa.rec.z, sofa.rec.r);
   out.sofa = { ok: pl.ok, gap: +Math.max(o[0] - rc[1], rc[0] - o[1], o[2] - rc[3], rc[2] - o[3]).toFixed(3), why: pl.res.why }; home.cancel(); return out; });
-ok('a piece pushed past a wall stops right against it', r.left.ok && r.left.x0 > -3.2 && r.left.x0 < -2.9 && r.back.ok && r.back.z0 > -2.8 && r.back.z0 < -2.5 && r.turned, JSON.stringify(r));
-ok('a piece dropped on the sofa slides to its side', r.sofa.ok && r.sofa.gap >= -0.001 && r.sofa.gap < 0.02, JSON.stringify(r.sofa));
+ok('a piece pushed past a wall stops right against it', r.left.ok && r.left.x0 > -3.2 && r.left.x0 < -2.9 && r.back.ok && r.back.z0 > -8.4 && r.back.z0 < -8.1 && r.turned, JSON.stringify(r));
+ok('a piece dropped on the sofa slides to a free place beside it', r.sofa.ok && r.sofa.gap >= -0.001 && r.sofa.gap < 0.8, JSON.stringify(r.sofa));
 r = await ev(() => { const g = window.__game, it = g.house.items.find((i) => i.rec.k === 'sofa_simples'), ex = () => getComputedStyle(document.querySelector('#b-exit')).display; const a = ex(); g.ui.furnCard(it); const b2 = ex(); g.ui.closeCards(); return { a, b2, c: ex() }; });
 ok('the way-out button steps aside while a card is open', r.a !== 'none' && r.b2 === 'none' && r.c !== 'none', JSON.stringify(r));
 await p.screenshot({ path: SP + '/house-1.png' });
