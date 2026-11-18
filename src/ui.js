@@ -78,6 +78,7 @@ export function createUI({ project, thumbs, audio }) {
       : `<button class="q-x" id="q-x" aria-label="Encolher">${ICON('x')}</button><div class="q-t">${ws.length ? 'Tudo feito por hoje. Aproveite o sossego!' : 'Seu jardim está lindo. Aproveite o sossego!'}</div>${chip}`)
       : `<button class="q-min ${fresh ? 'new' : ''}" id="q-min" style="--p:${pct}%" aria-label="${q ? (q.wish ? 'Desejo de hoje' : 'Próximo passo') + ': ' + q.text : 'Desejos de hoje'}">${ICON(q && !q.wish ? 'leaf' : 'flower')}<span>${q ? q.text : 'Desejos de hoje'}</span><b>${q ? `${q.val}/${q.goal}` : `${wd}/${ws.length}`}</b></button>`;
     const flip = (v) => { click(); if (st) st.questOpen = v; questEl.dataset.k = ''; U.quest(U._qa); };
+    if (fresh && q) { questEl.classList.add('peek'); clearTimeout(U._pk2); U._pk2 = setTimeout(() => questEl.classList.remove('peek'), 9000); }
     const mn = $('#q-min'); if (mn) mn.onclick = () => flip(true); const qx = $('#q-x'); if (qx) qx.onclick = () => flip(false);
     const b = $('#q-w'); if (b) b.onclick = () => { click(); U.wishes(); };
   };
@@ -387,6 +388,7 @@ export function createUI({ project, thumbs, audio }) {
       <label class="set" for="s-time"><span>Hora do dia</span><select id="s-time">${opt('auto', 'O dia passa sozinho', S.time)}${opt('dia', 'Sempre manhã', S.time)}${opt('tarde', 'Sempre entardecer', S.time)}${opt('noite', 'Sempre noite', S.time)}</select></label>
       <label class="set" for="s-q"><span>Qualidade da imagem</span><select id="s-q">${opt('auto', 'Automática', S.quality)}${opt('alta', 'Alta', S.quality)}${opt('media', 'Média', S.quality)}${opt('baixa', 'Leve (para aparelhos simples)', S.quality)}</select></label>
       <div class="howto"><b>Como jogar</b><ul><li>Toque num <i>+</i> para escolher uma planta.</li><li>Toque numa planta com a gotinha para regar.</li><li>Toque na flor com a moedinha para recolher o presente.</li><li>Arraste para girar a vista; use dois dedos ou a rodinha para aproximar.</li></ul></div>
+      ${window.__WEB ? `<div class="howto"><b>Versão do jogo</b><p>Você está na versão <b>${(window.__VER || '').slice(0, 6)}</b>. As novidades chegam sozinhas quando o jogo é aberto.</p><div class="c-act"><button class="btn ghost" id="s-upd">Buscar novidades agora</button></div></div>` : ''}
       <div class="howto save"><b>Seu jardim está guardado</b><p id="s-saved"></p>
         <div class="c-act"><button class="btn ghost" id="s-copy">Copiar código do jardim</button>${window.__WEB || window.__APP ? '<a class="btn ghost" id="s-file" download="meu-jardim.txt">Salvar em arquivo</a>' : ''}<button class="btn ghost" id="s-in">Trazer um jardim</button></div>
         <div id="s-box" hidden><textarea id="s-code" rows="3" placeholder="Cole aqui o código do jardim (começa com JARDIM1:)" aria-label="Código do jardim"></textarea><div class="c-act"><button class="btn" id="s-use">Usar este jardim</button></div></div>
@@ -398,6 +400,7 @@ export function createUI({ project, thumbs, audio }) {
       const code = () => toCode(G.state);
       $('#s-copy').onclick = async () => { click(); const c = code(); try { await navigator.clipboard.writeText(c); msg('Código copiado. Guarde num lugar seguro (uma mensagem para você mesma, por exemplo).'); } catch (e) { $('#s-box').hidden = false; $('#s-code').value = c; $('#s-code').select(); msg('Selecione e copie o código acima.'); } };
       const f = $('#s-file'); if (f) f.href = 'data:text/plain;charset=utf-8,' + encodeURIComponent(code());
+      { const up = $('#s-upd'); if (up) up.onclick = () => { click(); up.disabled = true; up.textContent = 'Buscando…'; if (U.updateNow) U.updateNow(); }; }
       $('#s-in').onclick = () => { click(); $('#s-box').hidden = false; $('#s-code').value = ''; $('#s-code').focus(); };
       const adopt = async (s) => { G.save = () => {}; await st.adopt(s); location.reload(); };
       $('#s-use').onclick = () => { const s = fromCode($('#s-code').value); if (!s) { audio.sfx('error'); msg('Não reconheci esse código. Ele precisa começar com JARDIM1: e estar inteiro.'); return; } const b = $('#s-use'); if (b.dataset.sure) adopt(s); else { b.dataset.sure = 1; b.textContent = 'Trocar o jardim atual por este?'; } };

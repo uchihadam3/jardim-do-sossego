@@ -56,10 +56,11 @@ function createThumbs(renderer) {
 }
 
 // hosted version: keep an offline copy and pick up new versions automatically
-let swUpdated = null;
+let swUpdated = null, swUpdating = null;
 if (window.__WEB && 'serviceWorker' in navigator) {
   const had = !!navigator.serviceWorker.controller;
-  navigator.serviceWorker.register('sw.js').then((r) => { setInterval(() => r.update().catch(() => {}), 30 * 60 * 1000); }).catch(() => {});
+  navigator.serviceWorker.register('sw.js').then((r) => { const watch = () => { const w = r.installing; if (!w || !had) return; if (swUpdating) swUpdating(true); w.addEventListener('statechange', () => { if (w.state === 'redundant' && swUpdating) swUpdating(false); }); };
+    r.addEventListener('updatefound', watch); watch(); window.__swCheck = () => r.update(); setInterval(() => r.update().catch(() => {}), 30 * 60 * 1000); }).catch(() => {});
   navigator.serviceWorker.addEventListener('controllerchange', () => { if (had && swUpdated) swUpdated(); });
   addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); window.__pwaPrompt = e; });
 }
@@ -126,7 +127,10 @@ async function boot() {
     if (returning && (state.news || 0) < NEWS_V && !params.get('nointro')) setTimeout(() => { if (!ui.open) ui.news(); }, 3200); state.news = NEWS_V;
   };
   startBtn.onclick = start;
-  swUpdated = () => { if (!started) location.reload(); else ui.toast('Chegaram novidades! Elas aparecem na próxima vez que você abrir o jogo.', 'good'); };
+  swUpdated = () => { if (!started) location.reload(); else ui.toast('Chegaram novidades! Elas aparecem na próxima vez que você abrir o jogo (ou agora, em Ajustes).', 'good'); };
+  // a new version is on its way while she is still on the first screen: wait for it (a little) instead of starting the old one
+  swUpdating = (on) => { if (started) return; const label = startBtn.dataset.label || startBtn.textContent; startBtn.dataset.label = label; const back = () => { startBtn.disabled = false; startBtn.textContent = label; }; if (!on) { back(); return; } startBtn.disabled = true; startBtn.textContent = 'Buscando novidades…'; setTimeout(back, 20000); };
+  ui.updateNow = async () => { game.save(true); try { if (window.__swCheck) await window.__swCheck(); } catch (e) {} setTimeout(() => location.reload(), 2500); };
   if (params.get('autostart')) start();
 
   // ---------- input ----------

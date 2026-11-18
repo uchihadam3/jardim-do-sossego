@@ -51,7 +51,7 @@ body.photo #ui>*:not(#photo-exit),body.photo #tags,body.photo #floats{display:no
 .q-r b{display:flex;align-items:center;gap:3px;color:var(--honey-d)}
 #menu{display:flex;flex-direction:column;gap:8px;align-items:flex-end}
 /* one button keeps the others (and the extra pills) tucked away until they are wanted */
-#menu .round:not(#b-more),#beauty-pill,#season{display:none} body.hud-open #menu .round:not(#b-more):not([hidden]){display:grid;animation:tin .2s ease-out} body.hud-open #beauty-pill,body.hud-open #season{display:flex}
+#menu .round:not(#b-more),#beauty-pill,#season,body:not(.hud-open) #quest:not(.peek){display:none} body.hud-open #menu .round:not(#b-more):not([hidden]){display:grid;animation:tin .2s ease-out} body.hud-open #beauty-pill,body.hud-open #season{display:flex}
 #b-more .ic.x{display:none;width:16px;height:16px;color:var(--ink-soft)} body.hud-open #b-more .ic.m{display:none} body.hud-open #b-more .ic.x{display:block} #b-more.hint{animation:glow 1.6s ease-in-out infinite} body.hud-open #b-more.hint{animation:none}
 .round{width:48px;height:48px;border-radius:50%;background:var(--paper);box-shadow:var(--shadow);display:grid;place-items:center;transition:transform .15s}
 .round:hover{transform:translateY(-2px)} .round:active{transform:scale(.94)}

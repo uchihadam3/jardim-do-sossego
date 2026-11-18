@@ -75,7 +75,7 @@ if "--web" in sys.argv:
             '<meta name="description" content="Jogo cozy de jardinagem em 3D: plante, regue e veja o seu cantinho florescer.">'
             '<meta name="theme-color" content="#7fb86a"><link rel="manifest" href="manifest.webmanifest">'
             '<link rel="icon" href="icone-192.png"><link rel="apple-touch-icon" href="icone-192.png"><meta name="apple-mobile-web-app-capable" content="yes">'
-            f'<style>{RESET}{fonts}</style></head><body><script>window.__WEB=true;</script>{page}</body></html>')
+            f'<style>{RESET}{fonts}</style></head><body><script>window.__WEB=true;window.__VER="{ver}";</script>{page}</body></html>')
     (docs / "index.html").write_text(html, encoding="utf-8")
     (docs / ".nojekyll").write_text("")
     (docs / "manifest.webmanifest").write_text(json.dumps({"name": "Jardim do Sossego", "short_name": "Jardim", "description": "Jogo cozy de jardinagem em 3D", "lang": "pt-BR",
@@ -85,7 +85,10 @@ if "--web" in sys.argv:
     (docs / "sw.js").write_text("""// Jardim do Sossego: copia offline + atualizacao automatica (gerado por tools/build.py)
 const V = 'jardim-%s';
 const ASSETS = %s;
-self.addEventListener('install', (e) => { e.waitUntil(caches.open(V).then((c) => c.addAll(ASSETS.map((u) => new Request(u, { cache: 'reload' })))).then(() => self.skipWaiting())); });
+// sounds and icons do not change from one version to the next: they are copied from the copy already on the device, so an update is a small download
+self.addEventListener('install', (e) => { e.waitUntil((async () => { const c = await caches.open(V), old = (await caches.keys()).filter((k) => k.startsWith('jardim-') && k !== V);
+  await Promise.all(ASSETS.map(async (u) => { if (/^(audio\\/|icone-)/.test(u)) for (const k of old) { const r = await (await caches.open(k)).match(u); if (r) { await c.put(u, r.clone()); return; } } await c.add(new Request(u, { cache: 'reload' })); }));
+  await self.skipWaiting(); })()); });
 self.addEventListener('activate', (e) => { e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k.startsWith('jardim-') && k !== V).map((k) => caches.delete(k)))).then(() => self.clients.claim())); });
 self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET' || new URL(e.request.url).origin !== location.origin) return;

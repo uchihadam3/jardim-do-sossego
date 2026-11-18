@@ -213,7 +213,7 @@ export function createGame({ scene, world, fx, audio, gardener, nav: gardenNav, 
     G.tasks.push({ kind, spot, ...extra }); return true;
   };
   // a seed that was not planted after all goes back where it came from (her purse, or the box of saved seedlings)
-  const refund = (t) => { if (t.box) S.seedbox[t.sp] = (S.seedbox[t.sp] || 0) + 1; else S.coins += t.paid ?? SPECIES[t.sp].price; t.spot.pending = null; };
+  const refund = (t) => { if (t.box) S.seedbox[t.sp] = (S.seedbox[t.sp] || 0) + 1; else S.coins += t.paid ?? SPECIES[t.sp].price; t.spot.pending = null; for (const m of t.mates || []) if (m.kind === 'plant' && m.spot.pending) refund(m); t.mates = null; };
   const cancelAll = () => { for (const t of G.tasks) if (t.kind === 'plant') { refund(t); } G.tasks.length = 0; ui.hud(); };
   const endBusy = () => { const c = G.cur; if (c && c.phase === 'busy') { G.cur = null; c.end && c.end(); } };
   G.clearTasks = () => { cancelAll(); endBusy(); if (G.cur && G.cur.kind === 'plant') { refund(G.cur); ui.hud(); } G.cur = null; gardener.stop(); };
@@ -397,6 +397,23 @@ export function createGame({ scene, world, fx, audio, gardener, nav: gardenNav, 
     delete S.weeds[spot.id]; delete S.wilt[spot.id]; delete S.rare[spot.id]; delete S.plants[spot.id]; rebuild(spot); fx.dust(spot.pos, 14); audio.sfx('plant', 0.8, 0.8); refreshMarkers(); ui.closeCards(); checkQuest(); save(); };
 
   const DUR = { water: 2.1, plant: 1.9, collect: 1.1, admire: 1.6, remove: 1.7, weed: 1.5, prune: 1.2 };
+  // She looks after a whole bed in one go, and from the side she is already on: no walking round it, no doing the same thing plant by plant.
+  const flat = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
+  const patchOf = (spot) => { let list;
+    if (spot.indoor) list = world.spots.filter((s) => s.indoor && s.active && (s === spot || (spot.item && s.item === spot.item) || (flat(s.pos, spot.pos) < 2.0 && Math.abs(s.pos.y - spot.pos.y) < 1.4)));
+    else if (spot.group) { list = world.spots.filter((s) => !s.indoor && s.group === spot.group && s.zone === spot.zone && s.type === spot.type); if (list.some((s) => flat(s.pos, spot.pos) > 9)) list = list.filter((s) => flat(s.pos, spot.pos) < 5.2); }
+    else list = world.spots.filter((s) => !s.indoor && !s.group && s.zone === spot.zone && s.type === spot.type && flat(s.pos, spot.pos) < 2.4);
+    return list.includes(spot) ? list : [spot, ...list]; };
+  const needs = (kind, s) => { const q = S.plants[s.id]; if (!q) return false; if (kind === 'collect') return !!(q.ready || S.rare[s.id]); if (kind === 'weed') return !!S.weeds[s.id]; if (kind === 'prune') return !!S.wilt[s.id];
+    if (kind === 'water') return thirstOf(SPECIES[q.sp], s) !== 0 && q.wet < waterMax() * 0.75; return false; };
+  const gather = (t) => { const patch = patchOf(t.spot), mates = [];
+    if (t.kind === 'plant') { for (const q of G.tasks.slice()) if (q.kind === 'plant' && q.spot !== t.spot && patch.includes(q.spot)) { mates.push(q); G.tasks.splice(G.tasks.indexOf(q), 1); } }
+    else if (t.kind === 'water' || t.kind === 'collect' || t.kind === 'weed' || t.kind === 'prune') { for (const q of G.tasks.slice()) if (q.kind === t.kind && q.spot !== t.spot && patch.includes(q.spot)) G.tasks.splice(G.tasks.indexOf(q), 1);
+      for (const s of patch) if (s !== t.spot && (needs(t.kind, s) || (t.kind === 'water' && s.pending))) mates.push({ kind: t.kind, spot: s }); }
+    t.mates = mates; t.mi = 0;
+    // where to stand: the nearest of the bed's own standing places; none at all if she is already beside it
+    const gp = gardener.group.position; let best = t.spot.stand, bd = flat(gp, t.spot.stand); for (const s of patch) { const d = flat(gp, s.stand); if (d < bd - 0.01) { bd = d; best = s.stand; } }
+    return bd < 0.45 ? null : best; };
   const startNext = () => {
     const t = G.tasks.shift(); if (!t) { G.cur = null; return; }
     if (!t.spot.indoor !== !G.inside) { if (t.kind === 'plant') { refund(t); ui.hud(); } return startNext(); }
@@ -404,7 +421,7 @@ export function createGame({ scene, world, fx, audio, gardener, nav: gardenNav, 
     if (t.kind === 'collect' && !S.plants[t.spot.id].ready && !S.rare[t.spot.id]) return startNext();
     if ((t.kind === 'weed' && !S.weeds[t.spot.id]) || (t.kind === 'prune' && !S.wilt[t.spot.id])) return startNext();
     if (t.kind === 'water' && S.plants[t.spot.id].wet >= waterMax() * 0.9) return startNext(); // a neighbour's watering already reached it
-    t.path = walkTo(t.spot.stand.x, t.spot.stand.z); t.phase = 'walk'; G.cur = t;
+    const st = t.kind === 'admire' || t.kind === 'remove' ? t.spot.stand : gather(t); t.path = st ? walkTo(st.x, st.z) : []; t.phase = 'walk'; G.cur = t;
   };
 
   // ---------- main update ----------
@@ -435,7 +452,7 @@ export function createGame({ scene, world, fx, audio, gardener, nav: gardenNav, 
     } else if (c.phase === 'act') {
       c.t += dt; const u = c.t / DUR[c.kind], tp = c.spot.pos;
       if (c.kind === 'water') {
-        if (u > 0.26 && u < 0.84) fx.water(gardener.spoutWorld, c.spot.type === 'arch' ? new THREE.Vector3(tp.x - 0.75, 0.1, tp.z) : tp, 3);
+        if (u > 0.26 && u < 0.84) { const ms = c.mates || [], k = ms.length ? Math.floor(c.t * 14) % (ms.length + 1) : 0, wt = k ? ms[k - 1].spot.pos : tp; fx.water(gardener.spoutWorld, c.spot.type === 'arch' ? new THREE.Vector3(wt.x - 0.75, 0.1, wt.z) : wt, 3); }
         if (!c.done && u > 0.5) { c.done = true; doWater(c.spot); }
       } else if (c.kind === 'plant') { if (!c.done && u > 0.55) { c.done = true; doPlant(c); } }
       else if (c.kind === 'remove') { if (!c.done && u > 0.55) { c.done = true; doRemove(c.spot); } }
@@ -443,7 +460,8 @@ export function createGame({ scene, world, fx, audio, gardener, nav: gardenNav, 
       else if (c.kind === 'weed') { if (!c.done && u > 0.55) { c.done = true; doWeed(c.spot); } }
       else if (c.kind === 'prune') { if (!c.done && u > 0.5) { c.done = true; doPrune(c.spot); } }
       else if (c.kind === 'admire') { if (!c.done && u > 0.4) { c.done = true; fx.hearts(new THREE.Vector3(gp.x, 1.7, gp.z), 4); } }
-      if (u >= 1) { G.cur = null; }
+      if (c.done && c.mates && c.mi < c.mates.length) { c.doneT = c.doneT ?? c.t; while (c.mi < c.mates.length && c.t >= c.doneT + (c.mi + 1) * 0.07) { const m = c.mates[c.mi++]; if (c.kind === 'plant') { if (m.spot.pending && !S.plants[m.spot.id]) doPlant(m); } else if (c.kind === 'water') { if (S.plants[m.spot.id] && S.plants[m.spot.id].wet < waterMax() * 0.9) doWater(m.spot); } else if (needs(c.kind, m.spot)) (c.kind === 'collect' ? doCollect : c.kind === 'weed' ? doWeed : doPrune)(m.spot); } }
+      if (u >= 1 && (!c.mates || c.mi >= c.mates.length)) { G.cur = null; }
     }
     gp.y = G.inside ? G.climbY ?? 0 : groundY(gp.x, gp.z); // climbY: on the stairs
 
