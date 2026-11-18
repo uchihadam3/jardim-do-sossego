@@ -161,7 +161,8 @@ async function boot() {
   };
   let x0 = 0, y0 = 0, slop = 8, dragPl = null;
   const groundAt = (cx, cy) => { const r = canvas.getBoundingClientRect(); ndc.set(((cx - r.left) / r.width) * 2 - 1, -((cy - r.top) / r.height) * 2 + 1); ray.setFromCamera(ndc, camera); return ray.ray.intersectPlane(plane, hit) ? hit : null; };
-  canvas.addEventListener('pointerdown', (e) => { canvas.setPointerCapture(e.pointerId); ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY }); if (ptrs.size === 1) { downAt = performance.now(); moved = 0; x0 = e.clientX; y0 = e.clientY; slop = e.pointerType === 'mouse' ? 7 : 16; dragPl = null;
+  if (params.get('nointro') && params.get('hud') !== '0') { document.body.classList.add('hud-pin'); ui.hudOpen(true); } // the automatic tests keep every button in reach
+  canvas.addEventListener('pointerdown', (e) => { ui.hudOpen(false); canvas.setPointerCapture(e.pointerId); ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY }); if (ptrs.size === 1) { downAt = performance.now(); moved = 0; x0 = e.clientX; y0 = e.clientY; slop = e.pointerType === 'mouse' ? 7 : 16; dragPl = null;
       const pl = game.placing; if (pl && pl.x != null && started) { const g = groundAt(e.clientX, e.clientY), gp = pl.group ? pl.group.position : pl; if (g && Math.hypot(g.x - gp.x, g.z - gp.z) < (pl.def.r ?? Math.max(pl.def.w || 0.6, pl.def.d || 0.6) / 2) + 0.55) dragPl = { ox: pl.x - g.x, oz: pl.z - g.z }; } } // a finger on the piece being placed drags it
  else if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; pinch0 = Math.hypot(a.x - b.x, a.y - b.y); dist0 = cam.dist; moved = 99; } });
   canvas.addEventListener('pointermove', (e) => {

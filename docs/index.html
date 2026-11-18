@@ -46,7 +46,10 @@ body.photo #ui>*:not(#photo-exit),body.photo #tags,body.photo #floats{display:no
 .q-t{font-family:var(--display);font-weight:500;font-size:16px;margin:1px 0 6px;text-wrap:balance}
 .q-r{display:flex;align-items:center;gap:8px;font-weight:800;font-size:13px;font-variant-numeric:tabular-nums}
 .q-r b{display:flex;align-items:center;gap:3px;color:var(--honey-d)}
-#menu{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;max-width:112px}
+#menu{display:flex;flex-direction:column;gap:8px;align-items:flex-end}
+/* one button keeps the others (and the extra pills) tucked away until they are wanted */
+#menu .round:not(#b-more),#beauty-pill,#season{display:none} body.hud-open #menu .round:not(#b-more):not([hidden]){display:grid;animation:tin .2s ease-out} body.hud-open #beauty-pill,body.hud-open #season{display:flex}
+#b-more .ic.x{display:none;width:16px;height:16px;color:var(--ink-soft)} body.hud-open #b-more .ic.m{display:none} body.hud-open #b-more .ic.x{display:block} #b-more.hint{animation:glow 1.6s ease-in-out infinite} body.hud-open #b-more.hint{animation:none}
 .round{width:48px;height:48px;border-radius:50%;background:var(--paper);box-shadow:var(--shadow);display:grid;place-items:center;transition:transform .15s}
 .round:hover{transform:translateY(-2px)} .round:active{transform:scale(.94)}
 .round .ic{width:24px;height:24px}
@@ -329,6 +332,7 @@ body.indoors.playing #b-exit{display:inline-flex} body.photo #b-exit,body.placin
 <symbol id="i-x" viewBox="0 0 24 24"><path d="M7 7l10 10M17 7L7 17" stroke="currentColor" stroke-width="2.800" stroke-linecap="round"/></symbol>
 <symbol id="i-bag" viewBox="0 0 24 24"><path d="M5 9h14l-1.200 10.500a2 2 0 0 1-2 1.800H8.200a2 2 0 0 1-2-1.800z" fill="#e2685f"/><path d="M8.500 11V7.500a3.500 3.500 0 0 1 7 0V11" fill="none" stroke="#2c4535" stroke-width="2.200" stroke-linecap="round"/></symbol>
 <symbol id="i-book" viewBox="0 0 24 24"><path d="M3.500 5.500C6.500 4.500 9.500 4.800 12 6.500c2.500-1.700 5.500-2 8.500-1V19c-3-1-6-.700-8.500 1-2.500-1.700-5.500-2-8.500-1z" fill="#5e9c55"/><path d="M12 6.500V20" stroke="#fbfaf1" stroke-width="1.800"/></symbol>
+<symbol id="i-more" viewBox="0 0 24 24"><g fill="#3f7c46"><rect x="3.5" y="3.5" width="7" height="7" rx="2.2"/><rect x="13.5" y="3.5" width="7" height="7" rx="2.2"/><rect x="3.5" y="13.5" width="7" height="7" rx="2.2"/><rect x="13.5" y="13.5" width="7" height="7" rx="2.2"/></g></symbol>
 <symbol id="i-gear" viewBox="0 0 24 24"><path d="M12 8.200a3.800 3.800 0 1 0 0 7.600 3.800 3.800 0 0 0 0-7.600zm8.600 3.800l1.900 1.500-1.900 3.300-2.300-.900a7.500 7.500 0 0 1-1.700 1l-.300 2.400h-3.800l-.400-2.400a7.500 7.500 0 0 1-1.700-1l-2.300.900-1.900-3.300L6.100 12 4.200 10.500l1.900-3.300 2.300.900a7.500 7.500 0 0 1 1.700-1l.400-2.400h3.800l.300 2.400a7.500 7.500 0 0 1 1.700 1l2.300-.900 1.900 3.300z" fill="#5d7565" fill-rule="evenodd"/></symbol>
 <symbol id="i-down" viewBox="0 0 24 24"><path d="M12 3.500v10.500M7.500 10l4.500 4.500 4.500-4.500" fill="none" stroke="#3f7c46" stroke-width="2.600" stroke-linecap="round" stroke-linejoin="round"/><path d="M4.500 16.500v2a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-2" fill="none" stroke="#5d7565" stroke-width="2.600" stroke-linecap="round"/></symbol>
 <symbol id="i-trophy" viewBox="0 0 24 24"><path d="M7 4h10v5a5 5 0 0 1-10 0z" fill="#f0b23a"/><path d="M7 5.500H4.500c0 3 1.200 4.500 3 4.800M17 5.500h2.500c0 3-1.200 4.500-3 4.800" fill="none" stroke="#c98a16" stroke-width="1.800"/><path d="M12 14v3.500M8.500 20h7" stroke="#c98a16" stroke-width="2.400" stroke-linecap="round"/></symbol>
@@ -357,6 +361,7 @@ body.indoors.playing #b-exit{display:inline-flex} body.photo #b-exit,body.placin
       <div id="quest"></div>
     </div>
     <div id="menu">
+      <button class="round" id="b-more" aria-label="Abrir os botões" aria-expanded="false"><svg class="ic m"><use href="#i-more"/></svg><svg class="ic x"><use href="#i-x"/></svg></button>
       <button class="round" id="b-shop" aria-label="Lojinha" title="Lojinha"><svg class="ic"><use href="#i-bag"/></svg></button>
       <button class="round" id="b-album" aria-label="Álbum de flores" title="Álbum de flores"><svg class="ic"><use href="#i-book"/></svg></button>
       <button class="round" id="b-photo" aria-label="Modo foto" title="Modo foto"><svg class="ic"><use href="#i-cam"/></svg></button>
@@ -381,5 +386,5 @@ body.indoors.playing #b-exit{display:inline-flex} body.photo #b-exit,body.placin
   <button class="btn big" id="start" hidden>Começar</button>
 </div>
 <div id="err" hidden></div>
-<script src="game.js?v=5ee8355598"></script>
+<script src="game.js?v=639c87e0a3"></script>
 </body></html>

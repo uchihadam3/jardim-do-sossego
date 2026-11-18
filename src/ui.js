@@ -65,7 +65,10 @@ export function createUI({ project, thumbs, audio }) {
     const p = project(v); if (!p.vis) return;
     const f = el('div', 'float ' + kind, (kind === 'coin' ? ICON('coin') : '') + text); f.style.left = p.x + 'px'; f.style.top = p.y + 'px'; floats.appendChild(f); setTimeout(() => f.remove(), 1500);
   };
-  U.quest = (q) => { U._qa = q;
+  // the one button that opens and tucks away the others
+  const more = $('#b-more'), setHud = (v) => { v = v || document.body.classList.contains('hud-pin'); document.body.classList.toggle('hud-open', v); more.setAttribute('aria-expanded', v); more.setAttribute('aria-label', v ? 'Recolher os botões' : 'Abrir os botões'); };
+  more.onclick = () => { click(); setHud(!document.body.classList.contains('hud-open')); }; U.hudOpen = setHud; setHud(false);
+  U.quest = (q) => { U._qa = q; more.classList.toggle('hint', !!q && /loj|álbum|foto|guarda-roupa/i.test(q.text || ''));
     const ws = U.game && U.game.sys ? U.game.sys.wishes() : [], wd = ws.filter((w) => w.done).length, chip = ws.length ? `<button class="q-w ${wd === ws.length ? 'all' : ''}" id="q-w">${ICON('flower')}Desejos de hoje<b>${wd}/${ws.length}</b></button>` : '';
     if (!q) { const w = ws.find((x) => !x.done); q = w ? { text: w.text, val: w.val, goal: w.goal, reward: w.r, wish: true } : null; }
     // Small by default: one slim line that opens into the whole card when touched, so the garden stays in view.
@@ -142,7 +145,7 @@ export function createUI({ project, thumbs, audio }) {
   U.closeCards = () => { U.cardFor = null; sheet.classList.remove('on'); card.classList.remove('on'); pickSpot = null; cardUpd = null; cardSpot = null; if (U.open === 'picker' || U.open === 'card') U.open = null; };
 
   // ---------- modals ----------
-  const openModal = (html, cls = '') => { U.closeCards(); U.dressing = false; modal.innerHTML = `<div class="panel ${cls}">${html}</div>`; modal.classList.add('on'); U.open = 'modal';
+  const openModal = (html, cls = '') => { U.closeCards(); setHud(false); U.dressing = false; modal.innerHTML = `<div class="panel ${cls}">${html}</div>`; modal.classList.add('on'); U.open = 'modal';
     modal.querySelectorAll('[data-close]').forEach((b) => (b.onclick = () => { click(); closeModal(); })); };
   const closeModal = () => { modal.classList.remove('on'); if (U.open === 'modal') U.open = null; U.dressing = false; };
   modal.addEventListener('pointerdown', (e) => { if (e.target === modal) closeModal(); });
@@ -462,7 +465,7 @@ export function createUI({ project, thumbs, audio }) {
       if (!b) { b = roomTags[r.id] = el('button', 'ztag rtag', `${ICON('home')}<small>${ICON('coin')}${r.cost}</small>`); b.title = r.name; b.setAttribute('aria-label', `${r.name}: ${r.cost} moedas`); b.onclick = () => { click(); U.roomOffer(r); }; tags.appendChild(b); }
       const p = r.id === 'hall2' ? project(new V3((STAIR.x0 + STAIR.x1) / 2, 0.9, (STAIR.z0 + STAIR.z1) / 2)) : project(new V3(r.cx, 0.6, r.cz)); b.hidden = !p.vis || (r.id !== 'hall2' && !!r.up !== (U.game.gp.z > 100)); if (p.vis) { b.style.transform = `translate(-50%,-100%) translate(${p.x.toFixed(1)}px,${p.y.toFixed(1)}px)`; b.classList.toggle('can', S.coins >= r.cost && U.game.level() >= r.lvl); } }
     const gp = U.game.gp;
-    for (const z of zones) { const b = tagEls[z.id]; if (!b) continue; if (inside || S.zones.includes(z.id) || Math.hypot(z.tag[0] - gp.x, z.tag[1] - gp.z) > 19) { b.hidden = true; continue; }
+    for (const z of zones) { const b = tagEls[z.id]; if (!b) continue; if (inside || S.zones.includes(z.id) || Math.hypot(z.tag[0] - gp.x, z.tag[1] - gp.z) > 13) { b.hidden = true; continue; }
       const p = project(new V3(z.tag[0], z.id === 1 ? 2.25 : 1.75, z.tag[1])); b.hidden = !p.vis; if (p.vis) { b.style.transform = `translate(-50%,-100%) translate(${p.x.toFixed(1)}px,${p.y.toFixed(1)}px)`; b.classList.toggle('can', S.coins >= z.cost); } }
     if (cardUpd && (U._ct = (U._ct || 0) + 1) % 20 === 0) cardUpd();
     U.sayTick(); if (!pumpThumbs() && thumbs.warm) thumbs.warm();
