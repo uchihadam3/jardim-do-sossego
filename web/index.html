@@ -40,7 +40,11 @@ body.photo #ui>*:not(#photo-exit),body.photo #tags,body.photo #floats{display:no
 .bar{height:8px;border-radius:8px;background:var(--line);overflow:hidden;flex:1;min-width:30px}
 .bar i{display:block;height:100%;border-radius:8px;background:var(--leaf);transition:width .5s}
 .bar.w i{background:var(--water)} .bar.c i{background:var(--honey)}
-#quest{background:var(--paper);border-radius:var(--r);padding:9px 13px 10px;box-shadow:var(--shadow);font-size:14px;line-height:1.25}
+#quest{position:relative;background:var(--paper);border-radius:var(--r);padding:9px 13px 10px;box-shadow:var(--shadow);font-size:14px;line-height:1.25}
+#quest.min{background:none;box-shadow:none;padding:0;border-radius:0;align-self:flex-start;max-width:100%} #quest[hidden]{display:none}
+.q-min{display:flex;align-items:center;gap:6px;max-width:min(250px,60vw);padding:5px 11px 5px 8px;border-radius:999px;background:linear-gradient(90deg,#e3f0d0 var(--p),var(--paper) var(--p));box-shadow:var(--shadow);font-family:var(--display);font-weight:500;font-size:13px;color:var(--ink);opacity:.94}
+.q-min span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0} .q-min b{font-family:var(--body);font-weight:800;font-size:12px;color:var(--leaf-d);font-variant-numeric:tabular-nums;flex:none} .q-min .ic{width:15px;height:15px;flex:none;color:var(--leaf-d)} .q-min.new{animation:bump .5s ease-out}
+.q-x{position:absolute;top:5px;right:6px;width:26px;height:26px;border-radius:50%;display:grid;place-items:center;color:var(--ink-soft);background:var(--paper-2)} .q-x .ic{width:13px;height:13px} #quest:not(.min) .q-h,#quest:not(.min) .q-t{padding-right:26px}
 .q-h{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-soft);font-weight:800}
 .q-t{font-family:var(--display);font-weight:500;font-size:16px;margin:1px 0 6px;text-wrap:balance}
 .q-r{display:flex;align-items:center;gap:8px;font-weight:800;font-size:13px;font-variant-numeric:tabular-nums}
@@ -314,7 +318,7 @@ body.indoors.playing #b-exit{display:inline-flex} body.photo #b-exit,body.placin
 .stcard .th{height:74px} .stcard .th i{display:block;width:100%;height:100%;background-size:cover;background-position:center;border-radius:10px}
 .c-pal{display:flex;flex-direction:column;gap:5px;margin:2px 0 4px} .c-pal>span{font-size:11.5px;font-weight:800;color:var(--ink-soft)} .c-pal .wpal{grid-template-columns:repeat(auto-fill,minmax(24px,1fr));gap:4px}
 .dcard .th em.cz{left:5px;right:auto;background:var(--honey);color:#4a3206}
-@media (max-width:520px){ #sheet{max-height:70%} .seeds{grid-template-columns:repeat(4,1fr);gap:6px} .seed{padding:4px 4px 6px;border-radius:12px} .seed .th{height:54px} .seed img{width:54px;height:54px} .seed b{font-size:11.5px} .meta{flex-direction:column;gap:0;font-size:10.5px} .fchip{padding:5px 10px;font-size:12.5px} .fchip.fill{margin-left:0} .sw{width:calc((100% - 16px) / 5)} .sw.pic{width:calc((100% - 12px) / 4)} .sw img{width:100%;height:auto;aspect-ratio:1} .dgrid{grid-template-columns:repeat(2,1fr)} .round{width:44px;height:44px} #menu{max-width:44px} .pill{font-size:15px;padding:5px 10px 5px 7px} .c-th{width:64px;height:64px} .c-row small{width:78px} }
+@media (max-width:520px){ .pill{font-size:15px;padding:4px 10px 4px 7px;gap:5px} .pill .ic{width:17px;height:17px} .pills{gap:5px} #hud{gap:6px} .round{width:42px;height:42px} .round .ic{width:20px;height:20px} #menu{gap:6px} #sheet{max-height:70%} .seeds{grid-template-columns:repeat(4,1fr);gap:6px} .seed{padding:4px 4px 6px;border-radius:12px} .seed .th{height:54px} .seed img{width:54px;height:54px} .seed b{font-size:11.5px} .meta{flex-direction:column;gap:0;font-size:10.5px} .fchip{padding:5px 10px;font-size:12.5px} .fchip.fill{margin-left:0} .sw{width:calc((100% - 16px) / 5)} .sw.pic{width:calc((100% - 12px) / 4)} .sw img{width:100%;height:auto;aspect-ratio:1} .dgrid{grid-template-columns:repeat(2,1fr)} .round{width:44px;height:44px} #menu{max-width:44px} .pill{font-size:15px;padding:5px 10px 5px 7px} .c-th{width:64px;height:64px} .c-row small{width:78px} }
 @media (prefers-reduced-motion:reduce){ *{animation-duration:.01s!important;transition-duration:.01s!important} }
 </style>
 

@@ -134,7 +134,7 @@ async function boot() {
   const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), plane = new THREE.Plane(new V3(0, 1, 0), 0), hit = new V3();
   const elianePick = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 1.75, 8), new THREE.MeshBasicMaterial({ visible: false })); elianePick.position.y = 0.875; gardener.group.add(elianePick);
   // how far the camera may pull back: enough to see the whole property (or the whole house) at once, also on an upright phone
-  const maxDist = () => { const tall = camera.aspect < 1; return game.inside ? (tall ? 64 : 44) : tall ? 96 : 64; };
+  const maxDist = () => { const half = Math.tan((16 * Math.PI) / 180) * Math.min(1.9, camera.aspect); return game.inside ? clamp(17 / half, 40, 130) : clamp(33 / half, 64, 260); }; // the whole width has to fit, even on a phone held upright
   const pickAt = (cx, cy, fat = 0) => {
     const r = canvas.getBoundingClientRect(); ndc.set(((cx - r.left) / r.width) * 2 - 1, -((cy - r.top) / r.height) * 2 + 1); ray.setFromCamera(ndc, camera);
     if (game.inside && fat) { const h0 = pickAt(cx, cy); if (!h0.ground) return h0; // a finger is wide: when the tap lands just beside a piece of furniture, take the nearest one

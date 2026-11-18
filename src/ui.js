@@ -65,12 +65,17 @@ export function createUI({ project, thumbs, audio }) {
     const p = project(v); if (!p.vis) return;
     const f = el('div', 'float ' + kind, (kind === 'coin' ? ICON('coin') : '') + text); f.style.left = p.x + 'px'; f.style.top = p.y + 'px'; floats.appendChild(f); setTimeout(() => f.remove(), 1500);
   };
-  U.quest = (q) => {
+  U.quest = (q) => { U._qa = q;
     const ws = U.game && U.game.sys ? U.game.sys.wishes() : [], wd = ws.filter((w) => w.done).length, chip = ws.length ? `<button class="q-w ${wd === ws.length ? 'all' : ''}" id="q-w">${ICON('flower')}Desejos de hoje<b>${wd}/${ws.length}</b></button>` : '';
     if (!q) { const w = ws.find((x) => !x.done); q = w ? { text: w.text, val: w.val, goal: w.goal, reward: w.r, wish: true } : null; }
-    const key = (q ? q.text + q.val : 'fim') + wd + ws.length; if (questEl.dataset.k === key) return; questEl.dataset.k = key;
-    questEl.innerHTML = q ? `<div class="q-h">${q.wish ? 'Desejo de hoje' : 'Próximo passo'}</div><div class="q-t">${q.text}</div><div class="q-r"><div class="bar"><i style="width:${Math.round((q.val / q.goal) * 100)}%"></i></div><span>${q.val}/${q.goal}</span><b>${ICON('coin')}${q.reward}</b></div>${chip}`
-      : `<div class="q-t">${ws.length ? 'Tudo feito por hoje. Aproveite o sossego!' : 'Seu jardim está lindo. Aproveite o sossego!'}</div>${chip}`;
+    // Small by default: one slim line that opens into the whole card when touched, so the garden stays in view.
+    const st = U.game && U.game.state ? U.game.state.settings : null, open = !!(st && st.questOpen), key = (q ? q.text + q.val : 'fim') + wd + ws.length + open; if (questEl.dataset.k === key) return; const fresh = questEl.dataset.q !== (q ? q.text : ''); questEl.dataset.k = key; questEl.dataset.q = q ? q.text : '';
+    const pct = q ? Math.round((q.val / q.goal) * 100) : 100; questEl.classList.toggle('min', !open); questEl.hidden = !q && !open && (!ws.length || wd === ws.length);
+    questEl.innerHTML = open ? (q ? `<button class="q-x" id="q-x" aria-label="Encolher">${ICON('x')}</button><div class="q-h">${q.wish ? 'Desejo de hoje' : 'Próximo passo'}</div><div class="q-t">${q.text}</div><div class="q-r"><div class="bar"><i style="width:${pct}%"></i></div><span>${q.val}/${q.goal}</span><b>${ICON('coin')}${q.reward}</b></div>${chip}`
+      : `<button class="q-x" id="q-x" aria-label="Encolher">${ICON('x')}</button><div class="q-t">${ws.length ? 'Tudo feito por hoje. Aproveite o sossego!' : 'Seu jardim está lindo. Aproveite o sossego!'}</div>${chip}`)
+      : `<button class="q-min ${fresh ? 'new' : ''}" id="q-min" style="--p:${pct}%" aria-label="${q ? (q.wish ? 'Desejo de hoje' : 'Próximo passo') + ': ' + q.text : 'Desejos de hoje'}">${ICON(q && !q.wish ? 'leaf' : 'flower')}<span>${q ? q.text : 'Desejos de hoje'}</span><b>${q ? `${q.val}/${q.goal}` : `${wd}/${ws.length}`}</b></button>`;
+    const flip = (v) => { click(); if (st) st.questOpen = v; questEl.dataset.k = ''; U.quest(U._qa); };
+    const mn = $('#q-min'); if (mn) mn.onclick = () => flip(true); const qx = $('#q-x'); if (qx) qx.onclick = () => flip(false);
     const b = $('#q-w'); if (b) b.onclick = () => { click(); U.wishes(); };
   };
   U.wishes = () => { const ws = U.game.sys.wishes(), done = ws.filter((w) => w.done).length;
